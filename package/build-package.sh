@@ -1,134 +1,105 @@
 #!/usr/bin/env bash
+# Validate and atomically bundle the public-quality BYO-data release.
 set -euo pipefail
 
 export LC_ALL=C
 export TZ=UTC
-export SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH:-1786665600}
-umask 022
+export PYTHONDONTWRITEBYTECODE=1
+umask 077
 
-ROOT=$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)
-OUT=${1:-"$ROOT/dist"}
-ARCHIVE="$OUT/magicrampage.zip"
-HASH_FILE="$ARCHIVE.sha256"
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
+REPOSITORY_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd -P)
+FRAMEWORK_ROOT=${NEXTOS_FRAMEWORK_ROOT:-}
+[[ -n $FRAMEWORK_ROOT && -d $FRAMEWORK_ROOT ]] || {
+  printf '%s\n' \
+    'set NEXTOS_FRAMEWORK_ROOT to the pinned NextOS framework source tree' >&2
+  exit 1
+}
+FRAMEWORK_ROOT=$(CDPATH= cd -- "$FRAMEWORK_ROOT" && pwd -P)
+
+NXRELEASE="$FRAMEWORK_ROOT/nxrelease/nxrelease.py"
+NXRELEASE_VERSION=0.2.8
+NXRELEASE_SHA256=b0494ae9010f72e869def3af2f4ca36d84cff92cc75d99b4c3165b2b86c38d22
+NXBOOTSTRAP_ROOT="$FRAMEWORK_ROOT/nxbootstrap"
+NXSPLASH_ROOT="$FRAMEWORK_ROOT/nxsplash"
+MANIFEST="$REPOSITORY_ROOT/nxrelease.json"
+DESTINATION=${1:-"$REPOSITORY_ROOT/dist/v1.1.0"}
+ARCHIVE_NAME=magicrampage.zip
 
 fail() {
   printf 'magicrampage package error: %s\n' "$*" >&2
   exit 1
 }
 
-[[ ! -e $ARCHIVE && ! -e $HASH_FILE ]] || fail "release output already exists: $OUT"
-[[ -x $ROOT/build/magicrampage-nextos ]] || fail "build/magicrampage-nextos is missing"
+require_pinned_file() {
+  local input_path=$1 expected_sha256=$2 label=$3
+  [[ -f $input_path && ! -L $input_path ]] ||
+    fail "$label is missing or unsafe"
+  [[ $(sha256sum -- "$input_path" | awk '{print $1}') == "$expected_sha256" ]] ||
+    fail "$label SHA-256 drifted"
+}
 
-WORK=$(mktemp -d "${TMPDIR:-/tmp}/magicrampage-package.XXXXXX")
+[[ -f $NXRELEASE && -f $MANIFEST ]] || fail 'release tool or manifest missing'
+require_pinned_file "$NXRELEASE" "$NXRELEASE_SHA256" 'NXRelease'
+[[ $(python3 -B "$NXRELEASE" --version) == "nxrelease $NXRELEASE_VERSION" ]] ||
+  fail 'NXRelease version drifted'
+[[ $(<"$NXBOOTSTRAP_ROOT/VERSION") == 0.6.10 ]] ||
+  fail 'NXBootstrap version drifted'
+require_pinned_file \
+  "$NXBOOTSTRAP_ROOT/tools/generate-port.py" \
+  c535410a80b8e7c7baa6020a1600c9734df4356bb27510c0d03b510c5db27637 \
+  'NXBootstrap generator'
+require_pinned_file \
+  "$NXBOOTSTRAP_ROOT/templates/launcher.sh.in" \
+  a3be9b12d048d3111487e9fa0295f3a7e13671258ea92c8db9b0c17ce01035f2 \
+  'NXBootstrap launcher template'
+[[ $(<"$NXSPLASH_ROOT/VERSION") == 0.1.1 ]] || fail 'NXSplash version drifted'
+require_pinned_file \
+  "$NXSPLASH_ROOT/release/manifest-v1.json" \
+  7ad49da9415b452f2cd9e240fbede0646842dcb3d531c77b926994d2f3197927 \
+  'NXSplash release manifest'
+require_pinned_file \
+  "$NXSPLASH_ROOT/release/aarch64/nxsplash-nextos" \
+  4ccfc3ce1222be4b93577ba104742ed3a0df3cf6b5c5e9b334771f25f0988bf4 \
+  'NXSplash AArch64 artifact'
+require_pinned_file \
+  "$REPOSITORY_ROOT/magicrampage/nxsplash-nextos" \
+  4ccfc3ce1222be4b93577ba104742ed3a0df3cf6b5c5e9b334771f25f0988bf4 \
+  'vendored NXSplash AArch64 artifact'
+
+python3 -B "$SCRIPT_DIR/check-installation.py" \
+  "$REPOSITORY_ROOT/magicrampage/extractor.json" \
+  "$REPOSITORY_ROOT/magicrampage/nxport.json" \
+  "$REPOSITORY_ROOT/magicrampage/INSTALLATION.md" \
+  "$MANIFEST"
+
+[[ ! -e $DESTINATION && ! -L $DESTINATION ]] ||
+  fail "destination already exists: $DESTINATION"
+mkdir -p -- "$(dirname -- "$DESTINATION")"
+
+WORK_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/magicrampage-package.XXXXXX")
 cleanup() {
-  case $WORK in
-    "${TMPDIR:-/tmp}"/magicrampage-package.*) rm -rf -- "$WORK" ;;
-    *) printf 'refusing unsafe cleanup path: %s\n' "$WORK" >&2 ;;
+  case $WORK_ROOT in
+    "${TMPDIR:-/tmp}"/magicrampage-package.*)
+      [[ -d $WORK_ROOT ]] && rm -rf -- "$WORK_ROOT"
+      ;;
+    *) printf 'refusing unsafe cleanup target: %s\n' "$WORK_ROOT" >&2 ;;
   esac
 }
 trap cleanup EXIT INT TERM
-STAGE="$WORK/stage"
-VERIFY="$WORK/verify"
-mkdir -p -- "$STAGE" "$VERIFY" "$OUT"
 
-put() {
-  local mode=$1 source=$2 target=$3
-  [[ -f $ROOT/$source && ! -L $ROOT/$source ]] || fail "unsafe or missing source: $source"
-  install -D -m "$mode" -- "$ROOT/$source" "$STAGE/$target"
-}
+python3 -B "$NXRELEASE" validate --manifest "$MANIFEST"
+python3 -B "$NXRELEASE" bundle \
+  --manifest "$MANIFEST" \
+  --stage "$WORK_ROOT/stage" \
+  --destination "$DESTINATION" \
+  --archive-name "$ARCHIVE_NAME" \
+  --max-glibc 2.17
+python3 -B "$NXRELEASE" verify \
+  --archive "$DESTINATION/$ARCHIVE_NAME" \
+  --sha256-file "$DESTINATION/$ARCHIVE_NAME.sha256" \
+  --max-glibc 2.17
 
-# Explicit release allowlist. Proprietary APKs and extracted Android libraries
-# never enter the package.
-put 0755 "Magic Rampage.sh" "Magic Rampage.sh"
-put 0755 "build/magicrampage-nextos" "magicrampage/bin/aarch64/magicrampage-nextos"
-put 0644 "magicrampage/nxport.json" "magicrampage/nxport.json"
-put 0644 "magicrampage/nxproject.json" "magicrampage/nxproject.json"
-put 0644 "magicrampage/port-env.sh" "magicrampage/port-env.sh"
-put 0644 "magicrampage/extractor.json" "magicrampage/extractor.json"
-put 0644 "magicrampage/nxextract/nxextract.py" "magicrampage/nxextract/nxextract.py"
-put 0644 "magicrampage/nxextract/run-extractor.sh" "magicrampage/nxextract/run-extractor.sh"
-put 0644 "magicrampage/nxextract/nxextract-runtime-env.sh" "magicrampage/nxextract/nxextract-runtime-env.sh"
-put 0644 "magicrampage/port.json" "magicrampage/port.json"
-put 0644 "magicrampage/README.md" "magicrampage/README.md"
-put 0644 "magicrampage/INSTALLATION.md" "magicrampage/INSTALLATION.md"
-put 0644 "magicrampage/LICENSE" "magicrampage/LICENSE"
-put 0644 "magicrampage/NOTICE.md" "magicrampage/NOTICE.md"
-put 0644 "magicrampage/version.txt" "magicrampage/version.txt"
-put 0644 "magicrampage/FRAMEWORK-PIN.json" "magicrampage/FRAMEWORK-PIN.json"
-put 0644 "magicrampage/adapter/adapter-contract.json" "magicrampage/adapter/adapter-contract.json"
-put 0644 "magicrampage/gamedata/README.txt" "magicrampage/gamedata/README.txt"
-
-[[ -f $STAGE/magicrampage/INSTALLATION.md ]] || fail "INSTALLATION.md path is wrong"
-[[ $(sha256sum "$ROOT/magicrampage/INSTALLATION.md" | awk '{print $1}') == \
-   $(sha256sum "$STAGE/magicrampage/INSTALLATION.md" | awk '{print $1}') ]] ||
-  fail "INSTALLATION.md differs from the documented recipe"
-
-if find "$STAGE" -type f \( -iname '*.apk' -o -iname '*.apkm' -o -iname '*.apks' \
-  -o -iname '*.xapk' -o -iname '*.obb' -o -iname '*.dex' -o -iname 'libmachine.so' \
-  -o -iname 'libfmod.so' -o -iname 'libcrypto.so' -o -iname 'libc++_shared.so' \) \
-  -print -quit | grep -q .; then
-  fail "proprietary owner data leaked into release"
-fi
-
-while IFS= read -r shell_path; do
-  bash -n "$shell_path" || fail "shell syntax failed: $shell_path"
-done < <(find "$STAGE" -type f -name '*.sh' -print | sort)
-
-python3 - "$STAGE" <<'PY'
-import pathlib, re, sys
-root = pathlib.Path(sys.argv[1])
-external_stat = re.compile(r"(?<![A-Za-z0-9_./-])stat(?=\s|$)")
-for path in root.rglob("*.sh"):
-    for number, line in enumerate(path.read_text(errors="strict").splitlines(), 1):
-        if line.lstrip().startswith("#"):
-            continue
-        if external_stat.search(line):
-            raise SystemExit(f"external stat command in {path.relative_to(root)}:{number}")
-PY
-
-python3 -B "$STAGE/magicrampage/nxextract/nxextract.py" recipe-check \
-  --recipe "$STAGE/magicrampage/extractor.json" >/dev/null
-[[ $(python3 -B "$STAGE/magicrampage/nxextract/nxextract.py" --version) == \
-   'NXExtract 1.2.6' ]] || fail "NXExtract version drift"
-
-ELF="$STAGE/magicrampage/bin/aarch64/magicrampage-nextos"
-file "$ELF" | grep -q 'ARM aarch64' || fail "release executable is not AArch64"
-[[ $(readelf -l "$ELF" | sed -n 's@.*Requesting program interpreter: \(.*\)]@\1@p') == \
-   '/lib/ld-linux-aarch64.so.1' ]] || fail "unexpected ELF interpreter"
-MAX_GLIBC=$(readelf --version-info "$ELF" |
-  sed -n 's/.*Name: GLIBC_\([0-9][0-9.]*\).*/\1/p' | sort -Vu | tail -n 1)
-[[ -n $MAX_GLIBC ]] || fail "cannot determine GLIBC requirement"
-[[ $(printf '%s\n%s\n' 2.30 "$MAX_GLIBC" | sort -V | tail -n 1) == 2.30 ]] ||
-  fail "ELF exceeds GLIBC_2.30: GLIBC_$MAX_GLIBC"
-[[ $(find "$STAGE" -type f -exec file --brief {} \; | grep -c '^ELF ') == 1 ]] ||
-  fail "unclassified or missing ELF in package"
-
-(
-  cd "$STAGE"
-  find . -type f ! -path './magicrampage/RELEASE-MANIFEST.sha256' -print0 |
-    sort -z | xargs -0 sha256sum > magicrampage/RELEASE-MANIFEST.sha256
-)
-find "$STAGE" -exec touch -h -d "@$SOURCE_DATE_EPOCH" {} +
-
-TMP_ARCHIVE="$WORK/magicrampage.zip"
-(
-  cd "$STAGE"
-  find . -type f -printf '%P\n' | sort | zip -X -q -9 "$TMP_ARCHIVE" -@
-)
-unzip -q "$TMP_ARCHIVE" -d "$VERIFY"
-[[ -f $VERIFY/magicrampage/INSTALLATION.md ]] || fail "final ZIP lost INSTALLATION.md"
-[[ $(sha256sum "$VERIFY/magicrampage/INSTALLATION.md" | awk '{print $1}') == \
-   $(sha256sum "$ROOT/magicrampage/INSTALLATION.md" | awk '{print $1}') ]] ||
-  fail "final ZIP INSTALLATION.md hash mismatch"
-(
-  cd "$VERIFY"
-  sha256sum -c magicrampage/RELEASE-MANIFEST.sha256 >/dev/null
-)
-
-install -m 0644 "$TMP_ARCHIVE" "$ARCHIVE"
-(
-  cd "$OUT"
-  sha256sum magicrampage.zip > magicrampage.zip.sha256
-)
-printf 'release=%s\nmax_glibc=%s\n' "$ARCHIVE" "$MAX_GLIBC"
-sha256sum "$ARCHIVE"
+printf 'MAGIC RAMPAGE BYO RELEASE: %s\n' "$DESTINATION/$ARCHIVE_NAME"
+printf '%s\n' 'profile=universal-portmaster proprietary_payload=0 exact_apk_recipe=1'
+sha256sum -- "$DESTINATION/$ARCHIVE_NAME"

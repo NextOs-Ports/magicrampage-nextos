@@ -21,6 +21,7 @@
   ],
   "required_files": [
     "bin/aarch64/magicrampage-nextos",
+    "nxsplash-nextos",
     "game.apk",
     "libc++_shared.so",
     "libcrypto.so",

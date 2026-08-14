@@ -3,11 +3,8 @@
     "skeleton": "contract-only"
   },
   "documentation": {
-    "proven_support": [
-      "NextOS Mali-450 AArch64 baseline",
-      "R36S ArkOS Mali-G31 AArch64"
-    ],
-    "status": "private-release-candidate"
+    "proven_support": [],
+    "status": "scaffold"
   },
   "license": {
     "source": "LICENSE",

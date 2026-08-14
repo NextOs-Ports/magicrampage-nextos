@@ -46,10 +46,7 @@
     "source": "LICENSE"
   },
   "documentation": {
-    "status": "private-release-candidate",
-    "proven_support": [
-      "NextOS Mali-450 AArch64 baseline",
-      "R36S ArkOS Mali-G31 AArch64"
-    ]
+    "status": "scaffold",
+    "proven_support": []
   }
 }
