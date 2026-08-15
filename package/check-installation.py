@@ -24,6 +24,7 @@ recipe = json.loads(recipe_path.read_text(encoding="utf-8"))
 nxport = json.loads(nxport_path.read_text(encoding="utf-8"))
 release = json.loads(release_path.read_text(encoding="utf-8"))
 installation = installation_path.read_text(encoding="utf-8")
+recipe_text = recipe_path.read_text(encoding="utf-8")
 
 expected_package = "com.asanteegames.magicrampage"
 expected_abi = "arm64-v8a"
@@ -35,10 +36,10 @@ reference_sha256 = (
 )
 minimum_size = 134217728
 maximum_size = 268435456
-engine_sha256 = "e6dac6e116eb0f4431a2585e3ec5ff5785a660fbf5e54f6047fdef13cbe5f3e8"
+engine_sha256 = "7c9d44df71cbe06ff24266c3fa73f08d14ad72973c532d8ef0808af7756a4901"
 runner_sha256 = "c931427c7226d22d7e30eee8549b50f0621dca1c9d0336634aca08631f454d7a"
 runtime_env_sha256 = "332919a9960d4317563b647f9932d1a4367da147a425fe2f78eafd706f01563f"
-ui_sha256 = "b4daf1bdffe4f1623752742bc6b796f93a203f8e4cba4c39f62dfcfd37cc2d72"
+ui_sha256 = "7ca901d8515ab9a084be81e05888e1fd03cec80fb03896df6331c1c95698ef56"
 critical_payloads = {
     "android-libcxx": (
         "lib/{abi}/libc++_shared.so",
@@ -65,6 +66,18 @@ critical_payloads = {
         "a7d56f224bbc7277551a1e16b52b36383a780d356ad099f9197658509d17b4dc",
     ),
 }
+
+if reference_sha256 in recipe_text:
+    fail("reference whole-APK SHA-256 was accidentally promoted to a recipe lock")
+for forbidden in ("SDL or active terminal", "SDL ou terminal ativo"):
+    if forbidden in installation:
+        fail("INSTALLATION.md still permits the quarantined terminal renderer")
+for required_text in (
+    "approved SDL/framebuffer identity",
+    "identidade SDL/framebuffer aprovada",
+):
+    if required_text not in installation:
+        fail("INSTALLATION.md does not preserve the approved graphical UI contract")
 
 if recipe.get("input", {}).get("packages") != [expected_package]:
     fail("package ID differs from the accepted owner data")
@@ -139,8 +152,8 @@ for token, label in (
         fail(label + " is not present in both languages")
 
 required = nxport.get("required_files", [])
-if nxport.get("nxextract") != {"mode": "yes", "version": "1.2.7"}:
-    fail("nxport does not opt into the exact NXExtract 1.2.7 set")
+if nxport.get("nxextract") != {"mode": "yes", "version": "1.2.9"}:
+    fail("nxport does not opt into the exact NXExtract 1.2.9 set")
 if required[:2] != ["bin/aarch64/magicrampage-nextos", "nxsplash-nextos"]:
     fail("launcher payload order does not pin nxsplash immediately after the executable")
 for path in ("game.apk", "libc++_shared.so", "libcrypto.so", "libfmod.so", "libmachine.so"):
@@ -173,8 +186,8 @@ for target, (kind, mode, sha256) in canonical_nxextract_files.items():
         fail("NXExtract release identity drifted: " + target)
 release_nxextract = release.get("nxextract", {})
 if (
-    release_nxextract.get("version") != "1.2.7"
-    or release_nxextract.get("minimum_version") != "1.2.7"
+    release_nxextract.get("version") != "1.2.9"
+    or release_nxextract.get("minimum_version") != "1.2.9"
     or release_nxextract.get("sha256") != engine_sha256
     or release_nxextract.get("runner_sha256") != runner_sha256
     or release_nxextract.get("runtime_env_sha256") != runtime_env_sha256

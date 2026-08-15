@@ -8,7 +8,7 @@
 3. Copy your legally obtained Android APK into `gamedata/`; the filename is irrelevant.
 4. Start **Magic Rampage** from the Ports menu. NXExtract validates and installs the
    owner data on first launch without deleting the APK. Its visible bilingual
-   extraction screen (SDL or active terminal) is mandatory while installation is
+   graphical extraction screen, with the approved SDL/framebuffer identity, is mandatory while installation is
    needed. After validation, the mandatory
    five-second bilingual **RETRO ELITE / NEXTOS** screen appears on every launch before
    the game, including launches where the data is already installed.
@@ -47,8 +47,8 @@ an unrestricted APK bypass.
 2. Crie `ports/magicrampage/gamedata/`.
 3. Copie para `gamedata/` o APK Android obtido legalmente; o nome do arquivo não importa.
 4. Abra **Magic Rampage** no menu Ports. O NXExtract valida e instala os dados do dono
-   na primeira execução sem apagar o APK. A tela bilíngue visível de extração (SDL ou
-   terminal ativo) é obrigatória enquanto a instalação for necessária. Depois da
+   na primeira execução sem apagar o APK. A tela gráfica bilíngue de extração,
+   com a identidade SDL/framebuffer aprovada, é obrigatória enquanto a instalação for necessária. Depois da
    validação, a tela bilíngue
    obrigatória **RETRO ELITE / NEXTOS** aparece por cinco segundos em toda abertura,
    inclusive quando os dados já estão instalados.

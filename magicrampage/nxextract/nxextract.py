@@ -25,6 +25,7 @@ import string
 import struct
 import subprocess
 import sys
+import tempfile
 import time
 import unicodedata
 import uuid
@@ -32,11 +33,12 @@ import zipfile
 from pathlib import Path, PurePosixPath
 
 
-NXEXTRACT_VERSION = "1.2.7"
+NXEXTRACT_VERSION = "1.2.9"
 FORMAT_VERSION = 1
 TRANSACTION_FORMAT_VERSION = 2
 CHUNK_SIZE = 1024 * 1024
 DEFAULT_SAFETY_BYTES = 128 * 1024 * 1024
+DEFAULT_UI_RUNTIME_TMP = "/tmp"
 DEFAULT_EXTENSIONS = (
     ".apk",
     ".apkm",
@@ -162,6 +164,130 @@ def open_private_text_append(path):
         os.O_WRONLY | os.O_APPEND | os.O_CREAT,
     )
     return os.fdopen(descriptor, "a", encoding="utf-8", buffering=1)
+
+
+def _open_trusted_runtime_base(path, private_only, label):
+    """Open a base where an unguessable owner-private directory cannot be replaced."""
+    if not path or not os.path.isabs(path):
+        raise NXError("%s must be an absolute directory" % label)
+    candidate = os.path.normpath(path)
+    if os.path.realpath(candidate) != candidate:
+        raise NXError("%s must not contain symbolic links" % label)
+    descriptor = os.open(
+        candidate,
+        os.O_RDONLY
+        | getattr(os, "O_DIRECTORY", 0)
+        | getattr(os, "O_CLOEXEC", 0)
+        | getattr(os, "O_NOFOLLOW", 0),
+    )
+    try:
+        info = os.fstat(descriptor)
+        path_info = os.lstat(candidate)
+        mode = stat.S_IMODE(info.st_mode)
+        same_object = (
+            info.st_dev == path_info.st_dev and info.st_ino == path_info.st_ino
+        )
+        owner_private = info.st_uid == os.geteuid() and mode & 0o077 == 0
+        owner_controlled = info.st_uid == os.geteuid() and mode & 0o022 == 0
+        sticky_shared = (
+            not private_only
+            and info.st_uid in (0, os.geteuid())
+            and bool(info.st_mode & stat.S_ISVTX)
+        )
+        if (
+            not stat.S_ISDIR(info.st_mode)
+            or stat.S_ISLNK(path_info.st_mode)
+            or not same_object
+            or not (
+                owner_private if private_only else owner_controlled or sticky_shared
+            )
+            or not os.access(candidate, os.W_OK | os.X_OK)
+        ):
+            raise NXError("%s is not a trustworthy runtime directory" % label)
+        return descriptor, candidate
+    except BaseException:
+        os.close(descriptor)
+        raise
+
+
+def _open_private_runtime_directory(path):
+    descriptor = os.open(
+        path,
+        os.O_RDONLY
+        | getattr(os, "O_DIRECTORY", 0)
+        | getattr(os, "O_CLOEXEC", 0)
+        | getattr(os, "O_NOFOLLOW", 0),
+    )
+    try:
+        info = os.fstat(descriptor)
+        path_info = os.lstat(path)
+        if (
+            not stat.S_ISDIR(info.st_mode)
+            or stat.S_ISLNK(path_info.st_mode)
+            or info.st_uid != os.geteuid()
+            or stat.S_IMODE(info.st_mode) & 0o077
+            or info.st_dev != path_info.st_dev
+            or info.st_ino != path_info.st_ino
+        ):
+            raise NXError("UI runtime directory is not owner-private")
+        return descriptor, (info.st_dev, info.st_ino)
+    except BaseException:
+        os.close(descriptor)
+        raise
+
+
+def create_private_ui_runtime_directory():
+    """Create the UI control plane away from FAT/exFAT game filesystems."""
+    candidates = []
+    candidate_indexes = {}
+
+    def add_candidate(path, private_only, label):
+        if not path:
+            return
+        key = os.path.abspath(os.path.normpath(path))
+        if key in candidate_indexes:
+            index = candidate_indexes[key]
+            old_path, old_private, old_label = candidates[index]
+            candidates[index] = (
+                old_path,
+                old_private and private_only,
+                "%s/%s" % (old_label, label),
+            )
+            return
+        candidate_indexes[key] = len(candidates)
+        candidates.append((path, private_only, label))
+
+    xdg_runtime = os.environ.get("XDG_RUNTIME_DIR")
+    add_candidate(xdg_runtime, True, "XDG_RUNTIME_DIR")
+    add_candidate(os.environ.get("TMPDIR"), False, "TMPDIR")
+    add_candidate(DEFAULT_UI_RUNTIME_TMP, False, "/tmp")
+    failures = []
+    for base, private_only, label in candidates:
+        base_descriptor = None
+        runtime_dir = None
+        try:
+            base_descriptor, base = _open_trusted_runtime_base(
+                base, private_only, label
+            )
+            runtime_dir = tempfile.mkdtemp(prefix="nxextract-ui-", dir=base)
+            os.chmod(runtime_dir, 0o700)
+            runtime_descriptor, identity = _open_private_runtime_directory(runtime_dir)
+            return runtime_dir, runtime_descriptor, identity
+        except (NXError, OSError) as error:
+            failures.append("%s: %s" % (label, error))
+            if runtime_dir is not None:
+                try:
+                    info = os.lstat(runtime_dir)
+                    if stat.S_ISDIR(info.st_mode) and not stat.S_ISLNK(info.st_mode):
+                        os.rmdir(runtime_dir)
+                except OSError:
+                    pass
+        finally:
+            if base_descriptor is not None:
+                os.close(base_descriptor)
+    raise NXError(
+        "no trustworthy private UI runtime directory (%s)" % "; ".join(failures)
+    )
 
 
 def validate_relative_path(value, label="path", allow_dot=False):
@@ -628,6 +754,7 @@ class Recipe:
         seen = set()
         for index, rule in enumerate(rules):
             self._validate_rule(rule, index, seen)
+        self._validate_container_contract(input_config, rules)
         commit = data.get("commit")
         if not isinstance(commit, list) or not commit:
             raise RecipeError("recipe commit must be a non-empty list")
@@ -746,6 +873,48 @@ class Recipe:
                 if key in seen_abis:
                     raise RecipeError("abi_order contains a duplicate ABI")
                 seen_abis.add(key)
+
+    def _validate_container_contract(self, input_config, rules):
+        containers = [
+            rule for rule in rules if rule["source"]["kind"] == "container"
+        ]
+        if not containers:
+            return
+        if not input_config.get("packages"):
+            raise RecipeError(
+                "container extraction requires input.packages; the external APK "
+                "identity alone must not identify the game"
+            )
+        for rule in containers:
+            hashes = normalize_hash_list(
+                rule.get("validate", {}).get("sha256"),
+                "extract %s sha256" % rule["id"],
+            )
+            # A single whole-container digest turns one tested APK into the
+            # only accepted APK. No digest remains content-driven; two or more
+            # digests preserve the already published explicit-official-build
+            # contract while ports migrate toward internal/package anchors.
+            if hashes and len(set(hashes)) < 2:
+                raise RecipeError(
+                    "extract %s container must not be locked to one whole-APK "
+                    "sha256; remove it or declare multiple compatible official "
+                    "container identities" % rule["id"]
+                )
+            crc_values = normalize_crc_list(
+                rule.get("validate", {}).get("crc32"),
+                "extract %s crc32" % rule["id"],
+            )
+            if crc_values and len(set(crc_values)) < 2:
+                raise RecipeError(
+                    "extract %s container must not be locked to one whole-APK "
+                    "crc32; remove it or declare multiple compatible official "
+                    "container identities" % rule["id"]
+                )
+            if "size" in rule.get("validate", {}):
+                raise RecipeError(
+                    "extract %s container must use bounded size or omit it, not "
+                    "one exact whole-APK size" % rule["id"]
+                )
 
     def _validate_input_config(self, config):
         extensions = config.get("extensions", list(DEFAULT_EXTENSIONS))
@@ -3503,6 +3672,9 @@ def commit_stage(recipe, plan, game_dir, workspace, marker_path, progress, logge
 
 
 class UISession:
+    GRAPHICAL_READY_PROOFS = (b"visible=sdl\n", b"visible=fbdev\n")
+    READY_TIMEOUT_SECONDS = 40.0
+
     def __init__(
         self,
         ui_option,
@@ -3521,10 +3693,111 @@ class UISession:
         self.recipe = recipe
         self.logger = logger
         self.process = None
-        self.stop_path = os.path.join(workspace, "ui.stop")
-        self.ready_path = os.path.join(workspace, "ui.ready")
+        self.runtime_dir = None
+        self.runtime_descriptor = None
+        self.runtime_identity = None
+        self.stop_path = None
+        self.ready_path = None
+        self.log_path = os.path.join(workspace, "ui.log")
         self.log_stream = None
         self.ready = False
+        self.renderer = None
+
+    def _prepare_runtime(self):
+        (
+            self.runtime_dir,
+            self.runtime_descriptor,
+            self.runtime_identity,
+        ) = create_private_ui_runtime_directory()
+        self.stop_path = os.path.join(self.runtime_dir, "ui.stop")
+        self.ready_path = os.path.join(self.runtime_dir, "ui.ready")
+
+    def _assert_runtime_directory(self):
+        if self.runtime_descriptor is None or self.runtime_dir is None:
+            raise NXError("UI runtime directory is unavailable")
+        descriptor_info = os.fstat(self.runtime_descriptor)
+        try:
+            path_info = os.lstat(self.runtime_dir)
+        except OSError as error:
+            raise NXError("UI runtime directory identity was lost: %s" % error)
+        if (
+            not stat.S_ISDIR(descriptor_info.st_mode)
+            or stat.S_ISLNK(path_info.st_mode)
+            or descriptor_info.st_uid != os.geteuid()
+            or stat.S_IMODE(descriptor_info.st_mode) & 0o077
+            or (descriptor_info.st_dev, descriptor_info.st_ino)
+            != self.runtime_identity
+            or descriptor_info.st_dev != path_info.st_dev
+            or descriptor_info.st_ino != path_info.st_ino
+        ):
+            raise NXError("UI runtime directory is unsafe or was replaced")
+
+    def _cleanup_runtime(self):
+        descriptor = self.runtime_descriptor
+        runtime_dir = self.runtime_dir
+        if descriptor is None:
+            return
+        try:
+            try:
+                self._assert_runtime_directory()
+            except (NXError, OSError) as error:
+                _best_effort_log(
+                    self.logger,
+                    "warning: could not verify UI runtime cleanup (%s)" % error,
+                )
+                return
+            for name in ("ui.ready", "ui.stop"):
+                try:
+                    os.unlink(name, dir_fd=descriptor)
+                except FileNotFoundError:
+                    pass
+                except OSError as error:
+                    _best_effort_log(
+                        self.logger,
+                        "warning: could not remove private UI runtime file (%s)"
+                        % error,
+                    )
+            try:
+                os.rmdir(runtime_dir)
+            except OSError as error:
+                _best_effort_log(
+                    self.logger,
+                    "warning: could not remove private UI runtime directory (%s)"
+                    % error,
+                )
+        finally:
+            os.close(descriptor)
+            self.runtime_dir = None
+            self.runtime_descriptor = None
+            self.runtime_identity = None
+            self.stop_path = None
+            self.ready_path = None
+
+    def _read_graphical_ready_proof(self):
+        self._assert_runtime_directory()
+        try:
+            descriptor = _verified_regular_descriptor(
+                self.ready_path,
+                os.O_RDONLY,
+            )
+        except (OSError, NXError) as error:
+            raise NXError(
+                "mandatory setup UI readiness proof is unsafe: %s" % error
+            )
+        try:
+            info = os.fstat(descriptor)
+            if info.st_uid != os.geteuid() or stat.S_IMODE(info.st_mode) & 0o077:
+                raise NXError("mandatory setup UI readiness proof is not private")
+            proof = os.read(descriptor, 65)
+        finally:
+            os.close(descriptor)
+        if proof not in self.GRAPHICAL_READY_PROOFS:
+            renderer = proof.decode("ascii", "replace").strip() or "empty"
+            raise NXError(
+                "mandatory setup UI did not attest an approved graphical "
+                "renderer (%s)" % renderer
+            )
+        return proof[len(b"visible=") : -1].decode("ascii")
 
     def _find_binary(self):
         if self.ui_option in (None, "none", "off", "0"):
@@ -3551,13 +3824,20 @@ class UISession:
             if self.require_ui:
                 raise NXError("mandatory setup UI binary is unavailable")
             return False
+        try:
+            self._prepare_runtime()
+        except (NXError, OSError) as error:
+            if self.require_ui:
+                raise
+            self.logger.log("setup UI unavailable (%s); continuing headless" % error)
+            return False
         for runtime_path in (self.stop_path, self.ready_path):
             try:
                 os.unlink(runtime_path)
             except FileNotFoundError:
                 pass
         self.log_stream = open_private_text_append(
-            os.path.join(self.workspace, "ui.log")
+            self.log_path
         )
         try:
             self.process = subprocess.Popen(
@@ -3584,7 +3864,11 @@ class UISession:
             return False
 
         if self.require_ui:
-            deadline = time.monotonic() + 5.0
+            # The approved graphical negotiation can exhaust its bounded SDL
+            # retries before opening the direct-framebuffer fallback. Keep a
+            # fail-closed 40-second boundary so slow ArkOS-class providers can
+            # still prove the exact graphical renderer they opened.
+            deadline = time.monotonic() + self.READY_TIMEOUT_SECONDS
             while time.monotonic() < deadline:
                 status = self.process.poll()
                 if status is not None:
@@ -3592,8 +3876,7 @@ class UISession:
                         "mandatory setup UI exited before opening a visible renderer"
                     )
                 if os.path.lexists(self.ready_path):
-                    if not is_private_regular_file(self.ready_path):
-                        raise NXError("mandatory setup UI readiness proof is unsafe")
+                    renderer = self._read_graphical_ready_proof()
                     # Do not accept a proof dropped by a helper that immediately
                     # died. Ongoing progress writes keep checking the child too.
                     time.sleep(0.02)
@@ -3602,13 +3885,19 @@ class UISession:
                             "mandatory setup UI exited after publishing readiness"
                         )
                     self.ready = True
-                    self.logger.log("mandatory setup UI visible renderer confirmed")
+                    self.renderer = renderer
+                    self.logger.log(
+                        "mandatory setup UI graphical renderer confirmed: %s"
+                        % renderer
+                    )
                     return True
                 time.sleep(0.05)
             raise NXError("mandatory setup UI did not confirm a visible renderer")
         return True
 
     def assert_visible(self):
+        if self.require_ui and self.ready:
+            self._assert_runtime_directory()
         if (
             self.require_ui
             and self.ready
@@ -3618,25 +3907,36 @@ class UISession:
             raise NXError("mandatory setup UI stopped before setup completed")
 
     def stop(self, delay=0):
-        if self.process is None:
-            return
-        if delay > 0:
-            time.sleep(delay)
-        atomic_write(self.stop_path, "")
         try:
-            self.process.wait(timeout=3)
-        except subprocess.TimeoutExpired:
-            self.process.terminate()
-            try:
-                self.process.wait(timeout=1)
-            except subprocess.TimeoutExpired:
-                self.process.kill()
-                self.process.wait()
-        if self.log_stream:
-            self.log_stream.close()
-        self.process = None
-        self.log_stream = None
-        self.ready = False
+            if self.process is not None:
+                if delay > 0:
+                    time.sleep(delay)
+                try:
+                    self._assert_runtime_directory()
+                    atomic_write(self.stop_path, "")
+                except (NXError, OSError) as error:
+                    _best_effort_log(
+                        self.logger,
+                        "warning: could not signal UI through private runtime (%s)"
+                        % error,
+                    )
+                try:
+                    self.process.wait(timeout=3)
+                except subprocess.TimeoutExpired:
+                    self.process.terminate()
+                    try:
+                        self.process.wait(timeout=1)
+                    except subprocess.TimeoutExpired:
+                        self.process.kill()
+                        self.process.wait()
+        finally:
+            if self.log_stream:
+                self.log_stream.close()
+            self.process = None
+            self.log_stream = None
+            self.ready = False
+            self.renderer = None
+            self._cleanup_runtime()
 
 
 def marker_matches_recipe(marker, recipe):

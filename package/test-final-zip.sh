@@ -8,7 +8,7 @@ umask 077
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
 REPOSITORY_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd -P)
-ARCHIVE=${1:-"$REPOSITORY_ROOT/dist/v1.1.1/magicrampage.zip"}
+ARCHIVE=${1:-"$REPOSITORY_ROOT/dist/v1.1.2/magicrampage.zip"}
 APK=${MAGICRAMPAGE_APK:-}
 EXPECTED_APK_SHA256=${MAGICRAMPAGE_EXPECT_APK_SHA256:-91adf146037def58867c23e705a26284d56adce7b56787b6e7eea417473021e6}
 
@@ -54,18 +54,40 @@ unzip -q "$ARCHIVE" -d "$PORTS_ROOT"
 [[ -x $PORTS_ROOT/magicrampage/nxextract/nxextract-ui ]] ||
   fail 'NXExtract UI mode was lost'
 [[ $(sha256sum -- "$PORTS_ROOT/magicrampage/nxextract/nxextract-ui" | awk '{print $1}') == \
-   b4daf1bdffe4f1623752742bc6b796f93a203f8e4cba4c39f62dfcfd37cc2d72 ]] ||
+   7ca901d8515ab9a084be81e05888e1fd03cec80fb03896df6331c1c95698ef56 ]] ||
   fail 'NXExtract UI identity drifted in the final ZIP'
 
 mkdir -p -- "$PORTS_ROOT/magicrampage/gamedata"
-cp -- "$APK" "$PORTS_ROOT/magicrampage/gamedata/owner.apk"
+REPACKED_APK="$TEST_ROOT/renamed-and-repacked-owner.apk"
+cp -- "$APK" "$REPACKED_APK"
+python3 -B - "$REPACKED_APK" <<'PY'
+import pathlib
+import sys
+import zipfile
+
+apk = pathlib.Path(sys.argv[1])
+with zipfile.ZipFile(apk, "a", allowZip64=True) as archive:
+    archive.comment = b"NXExtract flexible-container fixture\n"
+PY
+[[ $(sha256sum -- "$REPACKED_APK" | awk '{print $1}') != "$EXPECTED_APK_SHA256" ]] ||
+  fail 'repacked APK did not change whole-container SHA-256'
+python3 -B - "$REPACKED_APK" <<'PY'
+import sys
+import zipfile
+
+with zipfile.ZipFile(sys.argv[1], "r") as archive:
+    bad = archive.testzip()
+if bad is not None:
+    raise SystemExit("repacked APK contains a damaged member: " + bad)
+PY
+cp -- "$REPACKED_APK" "$PORTS_ROOT/magicrampage/gamedata/community-variant.apk"
 
 # Keep the launcher bytes exact while replacing only target-architecture
 # payloads in this disposable host fixture.
 cat > "$PORTS_ROOT/magicrampage/nxextract/nxextract-ui" <<'UI'
 #!/bin/bash
 printf 'ui\n' >> "$NXZIP_MARKERS/events"
-(umask 077; printf 'visible=host-fixture\n' > "$3")
+(umask 077; printf 'visible=sdl\n' > "$3")
 printf 'title=%s version=%s\n' "$4" "$5" > "$NXZIP_MARKERS/ui"
 while [ ! -e "$2" ]; do sleep 0.05; done
 exit 0
@@ -122,10 +144,10 @@ env -i PATH="$NO_STAT:$PATH" HOME="$TEST_ROOT" TMPDIR="${TMPDIR:-/tmp}" \
 grep -Fq 'setup UI started with' \
   "$PORTS_ROOT/magicrampage/nxextract.log" ||
   fail 'NXExtract log lacks proof that the packaged UI started'
-grep -Fq 'mandatory setup UI visible renderer confirmed' \
+grep -Fq 'mandatory setup UI graphical renderer confirmed: sdl' \
   "$PORTS_ROOT/magicrampage/nxextract.log" ||
   fail 'NXExtract log lacks visible-renderer attestation'
-grep -Fq 'nxsplash 0.1.1: mandatory handoff complete' \
+grep -Fq 'nxsplash 0.1.2: mandatory handoff complete' \
   "$PORTS_ROOT/magicrampage/log.txt" || fail 'runtime log lacks splash handoff'
 grep -Fq '== end (status 42) ==' "$PORTS_ROOT/magicrampage/log.txt" ||
   fail 'runtime log lacks truthful child status'
@@ -148,7 +170,7 @@ env -i PATH="$NO_STAT:$PATH" HOME="$TEST_ROOT" TMPDIR="${TMPDIR:-/tmp}" \
 grep -Fq 'fast validation marker accepted; no source scan needed' \
   "$PORTS_ROOT/magicrampage/nxextract.log" ||
   fail 'second launch did not use the installed-data marker'
-grep -Fq 'nxsplash 0.1.1: mandatory handoff complete' \
+grep -Fq 'nxsplash 0.1.2: mandatory handoff complete' \
   "$PORTS_ROOT/magicrampage/log.txt" ||
   fail 'second runtime log lacks mandatory splash handoff'
 
@@ -181,7 +203,7 @@ if len(logs) != 1:
 if stat.S_IMODE(logs[0].stat().st_mode) != 0o600:
     raise SystemExit("pre-runtime proof mode differs from 0600")
 text = logs[0].read_text(encoding="utf-8")
-if "nxbootstrap 0.6.12 | pre-runtime failure" not in text or "status=1 " not in text:
+if "nxbootstrap 0.6.14 | pre-runtime failure" not in text or "status=1 " not in text:
     raise SystemExit("pre-runtime proof lacks version or truthful status")
 PY
 [[ $(wc -l < "$MARKERS/early-pm-finish") == 1 ]] ||
@@ -189,4 +211,4 @@ PY
 [[ ! -e $MARKERS/stat-called ]] || fail 'pre-runtime path called external stat'
 
 printf '%s\n' \
-  'magicrampage final ZIP gate: PASS exact-launcher=1 no-stat=1 nxextract-ui=1 flexible-apk=1 splash-every-launch=2 early-log-0600=1 finish-once=3'
+  'magicrampage final ZIP gate: PASS exact-launcher=1 no-stat=1 nxextract-graphical-ui=1 repacked-apk=1 splash-every-launch=2 early-log-0600=1 finish-once=3'
