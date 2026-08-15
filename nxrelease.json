@@ -3,7 +3,7 @@
   "source_root": ".",
   "package": {
     "id": "magicrampage",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "profile": "universal-portmaster",
     "launcher": "Magic Rampage.sh",
     "launcher_chain": [
@@ -11,9 +11,9 @@
     ],
     "launcher_contract": {
       "generator": "nxbootstrap",
-      "version": "0.6.10",
+      "version": "0.6.12",
       "config_path": "magicrampage/nxport.json",
-      "config_sha256": "fb0492e33445ba3e49b9eb69e57e37d4e353f1fd8415a332f441bfb058c65c6f"
+      "config_sha256": "55a231ff050416b51de4286c506534bd37a2a0bdf653bc2b7bdb116692685811"
     },
     "port_dir": "magicrampage",
     "license": {
@@ -29,15 +29,17 @@
   },
   "nxextract": {
     "path": "magicrampage/nxextract/nxextract.py",
-    "version": "1.2.6",
-    "minimum_version": "1.2.6",
-    "sha256": "a4a8e5d3bf2a1344491e27921c54430ee9b4e3fedd0160631da96734fa3d5170",
+    "version": "1.2.7",
+    "minimum_version": "1.2.7",
+    "sha256": "e6dac6e116eb0f4431a2585e3ec5ff5785a660fbf5e54f6047fdef13cbe5f3e8",
     "runner_path": "magicrampage/nxextract/run-extractor.sh",
-    "runner_sha256": "179b72f02b9dfdf3ed1bdc382d074fb4ef07f83e3d62cfccfc74a950e68679c2",
+    "runner_sha256": "c931427c7226d22d7e30eee8549b50f0621dca1c9d0336634aca08631f454d7a",
     "runtime_env_path": "magicrampage/nxextract/nxextract-runtime-env.sh",
     "runtime_env_sha256": "332919a9960d4317563b647f9932d1a4367da147a425fe2f78eafd706f01563f",
+    "ui_path": "magicrampage/nxextract/nxextract-ui",
+    "ui_sha256": "b4daf1bdffe4f1623752742bc6b796f93a203f8e4cba4c39f62dfcfd37cc2d72",
     "recipe_path": "magicrampage/extractor.json",
-    "recipe_sha256": "251573cfca72fe92e858944feffa4ad24e4fceaec9b467e0ae633452cc98638c"
+    "recipe_sha256": "f6ba35d482551c383ad6a99241e5d4bbf740b232e858c175ba9ee9476561dcf2"
   },
   "dependencies": [
     {
@@ -96,14 +98,14 @@
       "target": "Magic Rampage.sh",
       "kind": "launcher",
       "mode": "0755",
-      "sha256": "3363a738f20d3aaa12146d50d8c76b1e63bc9a7879f915d80d0f6722a8e50203"
+      "sha256": "0ebf6730a579c2c4929cdc68fff8c3be9b8575192ff764778f57409b4282b476"
     },
     {
       "source": "magicrampage/nxport.json",
       "target": "magicrampage/nxport.json",
       "kind": "nxbootstrap-config",
       "mode": "0644",
-      "sha256": "fb0492e33445ba3e49b9eb69e57e37d4e353f1fd8415a332f441bfb058c65c6f"
+      "sha256": "55a231ff050416b51de4286c506534bd37a2a0bdf653bc2b7bdb116692685811"
     },
     {
       "source": "magicrampage/nxsplash-nextos",
@@ -145,7 +147,7 @@
       "target": "magicrampage/nxproject.json",
       "kind": "payload",
       "mode": "0644",
-      "sha256": "d48b047cf12fe6e56869cdfae3d586a3088265c7b1515280cb0406b8e66e4b0e"
+      "sha256": "34034b3999fb67b63998a010f1ecad8ab143b15f5ad3f8901cea569a157f41c0"
     },
     {
       "source": "magicrampage/port-env.sh",
@@ -159,21 +161,21 @@
       "target": "magicrampage/extractor.json",
       "kind": "nxextract-recipe",
       "mode": "0644",
-      "sha256": "251573cfca72fe92e858944feffa4ad24e4fceaec9b467e0ae633452cc98638c"
+      "sha256": "f6ba35d482551c383ad6a99241e5d4bbf740b232e858c175ba9ee9476561dcf2"
     },
     {
       "source": "magicrampage/nxextract/nxextract.py",
       "target": "magicrampage/nxextract/nxextract.py",
       "kind": "nxextract",
       "mode": "0644",
-      "sha256": "a4a8e5d3bf2a1344491e27921c54430ee9b4e3fedd0160631da96734fa3d5170"
+      "sha256": "e6dac6e116eb0f4431a2585e3ec5ff5785a660fbf5e54f6047fdef13cbe5f3e8"
     },
     {
       "source": "magicrampage/nxextract/run-extractor.sh",
       "target": "magicrampage/nxextract/run-extractor.sh",
       "kind": "nxextract-runner",
       "mode": "0644",
-      "sha256": "179b72f02b9dfdf3ed1bdc382d074fb4ef07f83e3d62cfccfc74a950e68679c2"
+      "sha256": "c931427c7226d22d7e30eee8549b50f0621dca1c9d0336634aca08631f454d7a"
     },
     {
       "source": "magicrampage/nxextract/nxextract-runtime-env.sh",
@@ -181,6 +183,21 @@
       "kind": "nxextract-runtime-env",
       "mode": "0644",
       "sha256": "332919a9960d4317563b647f9932d1a4367da147a425fe2f78eafd706f01563f"
+    },
+    {
+      "source": "magicrampage/nxextract/nxextract-ui",
+      "target": "magicrampage/nxextract/nxextract-ui",
+      "kind": "nxextract-ui-linux",
+      "mode": "0755",
+      "architecture": "aarch64",
+      "build_profile": "universal-low-glibc",
+      "provenance": "NXExtract 1.2.7 canonical attested UI",
+      "sha256": "b4daf1bdffe4f1623752742bc6b796f93a203f8e4cba4c39f62dfcfd37cc2d72",
+      "needed": [
+        "libc.so.6",
+        "libdl.so.2"
+      ],
+      "soname": null
     },
     {
       "source": "magicrampage/port.json",
@@ -194,14 +211,14 @@
       "target": "magicrampage/README.md",
       "kind": "payload",
       "mode": "0644",
-      "sha256": "d02eb8ee77fe9b96df842ded75d2065895ba1c9f199338db0e80898427940bfc"
+      "sha256": "0a9c71ddf4889d49b701f017c84b564883022fb71499bb7f824675174bab7a4a"
     },
     {
       "source": "magicrampage/INSTALLATION.md",
       "target": "magicrampage/INSTALLATION.md",
       "kind": "payload",
       "mode": "0644",
-      "sha256": "8911a6297df595efe169adf9441820ac2cc8da767d842f623f097106d48a6d44"
+      "sha256": "d9772911aa89574d5b98be82682fc7cbe701b817c9d34b3e49f7013beeb23d7b"
     },
     {
       "source": "magicrampage/LICENSE",
@@ -222,21 +239,21 @@
       "target": "magicrampage/version.txt",
       "kind": "payload",
       "mode": "0644",
-      "sha256": "1575e1af4a95f12f70b4ee6a6adce8160953d93ea17dc2611b90883ccc3ad3b8"
+      "sha256": "cc52f678848b814373757b460383bf61960e4943c203735adde0a350b3e50989"
     },
     {
       "source": "magicrampage/FRAMEWORK-PIN.json",
       "target": "magicrampage/FRAMEWORK-PIN.json",
       "kind": "payload",
       "mode": "0644",
-      "sha256": "5b5e75c5d0d27087a5fb105e57aa1efd3498c00f357e2bebae45280bff49239b"
+      "sha256": "562f3ed2293303be9b343ade35aeb692d7cab27c5303b3e20c5cb097dbb7fa3c"
     },
     {
       "source": "magicrampage/GENERATION.json",
       "target": "magicrampage/GENERATION.json",
       "kind": "payload",
       "mode": "0644",
-      "sha256": "dfe2ffe728f338f618eb105f3fd2da3852554a5e4068bb9c2fba4f7540474779"
+      "sha256": "8a2de36987bf5d2c6c587ae6dc3fdab5c31da3195ae7864e0564aae17a079cae"
     },
     {
       "source": "magicrampage/adapter/adapter-contract.json",

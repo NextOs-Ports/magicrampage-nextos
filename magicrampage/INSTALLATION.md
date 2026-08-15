@@ -7,16 +7,38 @@
 2. Create `ports/magicrampage/gamedata/`.
 3. Copy your legally obtained Android APK into `gamedata/`; the filename is irrelevant.
 4. Start **Magic Rampage** from the Ports menu. NXExtract validates and installs the
-   owner data on first launch without deleting the APK. After validation, the
-   mandatory five-second bilingual **RETRO ELITE** screen appears before the game.
+   owner data on first launch without deleting the APK. Its visible bilingual
+   extraction screen (SDL or active terminal) is mandatory while installation is
+   needed. After validation, the mandatory
+   five-second bilingual **RETRO ELITE / NEXTOS** screen appears on every launch before
+   the game, including launches where the data is already installed.
 
-Accepted owner data:
+Tested reference owner APK:
 
 - Game: Magic Rampage 7.8.2
 - Package ID: `com.asanteegames.magicrampage`
 - ABI used by this port: `arm64-v8a` (AArch64 only)
+- Reference filename: `magic-rampage-7.8.2-mod-t-5play.apk`
 - APK size: `162114946` bytes
 - APK SHA-256: `91adf146037def58867c23e705a26284d56adce7b56787b6e7eea417473021e6`
+
+Compatible 7.8.2 packaging variants may have a different APK filename, size and
+whole-file SHA-256. They are accepted only when NXExtract proves all of these:
+
+- package ID `com.asanteegames.magicrampage`, ABI `arm64-v8a`, ZIP/APK magic and
+  container size from `134217728` through `268435456` bytes;
+- `libc++_shared.so`: `1253544` bytes, SHA-256
+  `ad74bf43eb1fd576518168f664ad16a74e00eeda9595875c33dd87f6dd197869`;
+- `libcrypto.so`: `5613536` bytes, SHA-256
+  `97cad5581cdfe401251067ac41b507478ae434d7597fe8d08c78bc215a556587`;
+- `libfmod.so`: `1472528` bytes, SHA-256
+  `fbb2ee0f88bcbd79ad1449d74215f421efa2456b3397da49229986bcfc2f27ad`;
+- `libmachine.so`: `4916048` bytes, SHA-256
+  `a7d56f224bbc7277551a1e16b52b36383a780d356ad099f9197658509d17b4dc`.
+
+An APK from another game version or with different critical native payload remains
+rejected. This flexibility covers legitimate signing/repacking differences; it is not
+an unrestricted APK bypass.
 
 ## Português
 
@@ -25,13 +47,35 @@ Accepted owner data:
 2. Crie `ports/magicrampage/gamedata/`.
 3. Copie para `gamedata/` o APK Android obtido legalmente; o nome do arquivo não importa.
 4. Abra **Magic Rampage** no menu Ports. O NXExtract valida e instala os dados do dono
-   na primeira execução sem apagar o APK. Depois da validação, a tela bilíngue
-   obrigatória **RETRO ELITE** aparece por cinco segundos antes do jogo.
+   na primeira execução sem apagar o APK. A tela bilíngue visível de extração (SDL ou
+   terminal ativo) é obrigatória enquanto a instalação for necessária. Depois da
+   validação, a tela bilíngue
+   obrigatória **RETRO ELITE / NEXTOS** aparece por cinco segundos em toda abertura,
+   inclusive quando os dados já estão instalados.
 
-Dados do dono aceitos:
+APK de referência testado:
 
 - Jogo: Magic Rampage 7.8.2
 - Package ID: `com.asanteegames.magicrampage`
 - ABI usada pelo port: `arm64-v8a` (somente AArch64)
+- Nome de referência: `magic-rampage-7.8.2-mod-t-5play.apk`
 - Tamanho do APK: `162114946` bytes
 - SHA-256 do APK: `91adf146037def58867c23e705a26284d56adce7b56787b6e7eea417473021e6`
+
+Variantes de empacotamento compatíveis da versão 7.8.2 podem ter outro nome,
+tamanho e SHA-256 do APK completo. Elas só são aceitas quando o NXExtract comprova:
+
+- package ID `com.asanteegames.magicrampage`, ABI `arm64-v8a`, magic ZIP/APK e
+  tamanho do container entre `134217728` e `268435456` bytes;
+- `libc++_shared.so`: `1253544` bytes, SHA-256
+  `ad74bf43eb1fd576518168f664ad16a74e00eeda9595875c33dd87f6dd197869`;
+- `libcrypto.so`: `5613536` bytes, SHA-256
+  `97cad5581cdfe401251067ac41b507478ae434d7597fe8d08c78bc215a556587`;
+- `libfmod.so`: `1472528` bytes, SHA-256
+  `fbb2ee0f88bcbd79ad1449d74215f421efa2456b3397da49229986bcfc2f27ad`;
+- `libmachine.so`: `4916048` bytes, SHA-256
+  `a7d56f224bbc7277551a1e16b52b36383a780d356ad099f9197658509d17b4dc`.
+
+APK de outra versão ou com payload nativo crítico diferente continua rejeitado. A
+flexibilidade cobre diferenças legítimas de assinatura/empacotamento; não é uma
+liberação irrestrita de APK.

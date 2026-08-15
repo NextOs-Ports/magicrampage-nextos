@@ -32,7 +32,7 @@ import zipfile
 from pathlib import Path, PurePosixPath
 
 
-NXEXTRACT_VERSION = "1.2.6"
+NXEXTRACT_VERSION = "1.2.7"
 FORMAT_VERSION = 1
 TRANSACTION_FORMAT_VERSION = 2
 CHUNK_SIZE = 1024 * 1024
@@ -1069,6 +1069,10 @@ class Progress:
         self.detail = ""
         self.last_write = 0.0
         self.last_tuple = None
+        self.guard = None
+
+    def set_guard(self, guard):
+        self.guard = guard
 
     def update(
         self,
@@ -1082,6 +1086,8 @@ class Progress:
         state=None,
         force=False,
     ):
+        if self.guard is not None:
+            self.guard()
         if phase is not None:
             self.phase = max(0, min(8, int(phase)))
         if overall is not None:
@@ -3497,8 +3503,18 @@ def commit_stage(recipe, plan, game_dir, workspace, marker_path, progress, logge
 
 
 class UISession:
-    def __init__(self, ui_option, script_dir, workspace, progress_path, recipe, logger):
+    def __init__(
+        self,
+        ui_option,
+        require_ui,
+        script_dir,
+        workspace,
+        progress_path,
+        recipe,
+        logger,
+    ):
         self.ui_option = ui_option
+        self.require_ui = require_ui
         self.script_dir = script_dir
         self.workspace = workspace
         self.progress_path = progress_path
@@ -3506,7 +3522,9 @@ class UISession:
         self.logger = logger
         self.process = None
         self.stop_path = os.path.join(workspace, "ui.stop")
+        self.ready_path = os.path.join(workspace, "ui.ready")
         self.log_stream = None
+        self.ready = False
 
     def _find_binary(self):
         if self.ui_option in (None, "none", "off", "0"):
@@ -3530,11 +3548,14 @@ class UISession:
     def start(self):
         binary = self._find_binary()
         if not binary:
-            return
-        try:
-            os.unlink(self.stop_path)
-        except FileNotFoundError:
-            pass
+            if self.require_ui:
+                raise NXError("mandatory setup UI binary is unavailable")
+            return False
+        for runtime_path in (self.stop_path, self.ready_path):
+            try:
+                os.unlink(runtime_path)
+            except FileNotFoundError:
+                pass
         self.log_stream = open_private_text_append(
             os.path.join(self.workspace, "ui.log")
         )
@@ -3544,6 +3565,7 @@ class UISession:
                     binary,
                     self.progress_path,
                     self.stop_path,
+                    self.ready_path,
                     self.recipe.title,
                     self.recipe.version,
                 ],
@@ -3554,9 +3576,46 @@ class UISession:
             )
             self.logger.log("setup UI started with %s" % binary)
         except OSError as error:
-            self.logger.log("setup UI unavailable (%s); continuing headless" % error)
             self.log_stream.close()
             self.log_stream = None
+            if self.require_ui:
+                raise NXError("mandatory setup UI could not start: %s" % error)
+            self.logger.log("setup UI unavailable (%s); continuing headless" % error)
+            return False
+
+        if self.require_ui:
+            deadline = time.monotonic() + 5.0
+            while time.monotonic() < deadline:
+                status = self.process.poll()
+                if status is not None:
+                    raise NXError(
+                        "mandatory setup UI exited before opening a visible renderer"
+                    )
+                if os.path.lexists(self.ready_path):
+                    if not is_private_regular_file(self.ready_path):
+                        raise NXError("mandatory setup UI readiness proof is unsafe")
+                    # Do not accept a proof dropped by a helper that immediately
+                    # died. Ongoing progress writes keep checking the child too.
+                    time.sleep(0.02)
+                    if self.process.poll() is not None:
+                        raise NXError(
+                            "mandatory setup UI exited after publishing readiness"
+                        )
+                    self.ready = True
+                    self.logger.log("mandatory setup UI visible renderer confirmed")
+                    return True
+                time.sleep(0.05)
+            raise NXError("mandatory setup UI did not confirm a visible renderer")
+        return True
+
+    def assert_visible(self):
+        if (
+            self.require_ui
+            and self.ready
+            and self.process is not None
+            and self.process.poll() is not None
+        ):
+            raise NXError("mandatory setup UI stopped before setup completed")
 
     def stop(self, delay=0):
         if self.process is None:
@@ -3577,6 +3636,7 @@ class UISession:
             self.log_stream.close()
         self.process = None
         self.log_stream = None
+        self.ready = False
 
 
 def marker_matches_recipe(marker, recipe):
@@ -3746,6 +3806,7 @@ def install_command(args):
     progress = Progress(progress_path, logger)
     ui = UISession(
         args.ui,
+        args.require_ui,
         os.path.dirname(os.path.realpath(__file__)),
         workspace,
         progress_path,
@@ -3779,6 +3840,7 @@ def install_command(args):
                     )
                     return 0
             ui.start()
+            progress.set_guard(ui.assert_visible)
             progress.update(
                 phase=0,
                 overall=0,
@@ -3864,6 +3926,7 @@ def install_command(args):
             return 0
     except (NXError, OSError, zipfile.BadZipFile, RuntimeError, NotImplementedError) as error:
         logger.log("ERROR: %s" % error)
+        progress.set_guard(None)
         progress.fail(str(error).upper())
         if ui.process is not None:
             ui.stop(delay=float(recipe.data.get("ui_error_seconds", 5)))
@@ -4059,6 +4122,11 @@ def build_parser():
         "--ui",
         default="auto",
         help="auto, none, or a path to nxextract-ui (default: auto)",
+    )
+    install.add_argument(
+        "--require-ui",
+        action="store_true",
+        help="fail before extraction unless the setup UI confirms a visible renderer",
     )
     install.add_argument("--progress-file", help="override progress protocol path")
     install.add_argument(
