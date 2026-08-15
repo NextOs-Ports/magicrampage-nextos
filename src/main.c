@@ -71,6 +71,7 @@ enum {
   GS_KEY_ESCAPE = 13,
   GS_KEY_A = 43,
   GS_KEY_D = 46,
+  GS_KEY_I = 51,
   GS_KEY_S = 61,
   GS_KEY_W = 65,
 };
@@ -328,6 +329,8 @@ static int input_update_sdl(void *self) {
                controller_button_down(SDL_CONTROLLER_BUTTON_X) ||
                controller_button_down(SDL_CONTROLLER_BUTTON_Y) ||
                controller_button_down(SDL_CONTROLLER_BUTTON_RIGHTSHOULDER);
+  int inventory = keys[SDL_SCANCODE_I] ||
+                  controller_button_down(SDL_CONTROLLER_BUTTON_LEFTSHOULDER);
   int accept = keys[SDL_SCANCODE_RETURN] ||
                controller_button_down(SDL_CONTROLLER_BUTTON_START) ||
                controller_button_down(SDL_CONTROLLER_BUTTON_B);
@@ -345,6 +348,10 @@ static int input_update_sdl(void *self) {
   if (attack && !(g_input_evidence & 4u)) {
     fprintf(stderr, "[input] evidence attack=OK\n");
     g_input_evidence |= 4u;
+  }
+  if (inventory && !(g_input_evidence & 32u)) {
+    fprintf(stderr, "[input] evidence inventory=OK\n");
+    g_input_evidence |= 32u;
   }
   if (accept && !(g_input_evidence & 8u)) {
     fprintf(stderr, "[input] evidence accept=OK\n");
@@ -364,6 +371,7 @@ static int input_update_sdl(void *self) {
   update_android_key(self, GS_KEY_W, up);
   update_android_key(self, GS_KEY_S, down);
   update_android_key(self, GS_KEY_SPACE, attack);
+  update_android_key(self, GS_KEY_I, inventory);
   update_android_key(self, GS_KEY_ENTER, accept);
   update_android_key(self, GS_KEY_ESCAPE, cancel);
   return 1;

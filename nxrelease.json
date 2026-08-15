@@ -3,7 +3,7 @@
   "source_root": ".",
   "package": {
     "id": "magicrampage",
-    "version": "1.1.2",
+    "version": "1.1.3",
     "profile": "universal-portmaster",
     "launcher": "Magic Rampage.sh",
     "launcher_chain": [
@@ -130,7 +130,7 @@
       "architecture": "aarch64",
       "build_profile": "universal-low-glibc",
       "provenance": "build-glibc230.sh; Debian Buster image sha256:58ce6f1271ae1c8a2006ff7d3e54e9874d839f573d8009c20154ad0f2fb0a225; AArch64 SDK-linked SDL2, SDL2_mixer and libzip",
-      "sha256": "237f83b37363365c73780e3176c554b12af64032cc4889c182e6c1cb761bf7d4",
+      "sha256": "0b10c6c96de082cec9923d0fa32c4541c13495908b3465096a6f91481b3040e8",
       "needed": [
         "libSDL2-2.0.so.0",
         "libSDL2_mixer-2.0.so.0",
@@ -211,7 +211,7 @@
       "target": "magicrampage/README.md",
       "kind": "payload",
       "mode": "0644",
-      "sha256": "8b1dd812dd886e80c9c012c5125c9916933ac729571cc1e930063ec16c25130a"
+      "sha256": "93f02a44b74532abfa4a9e17d16035517b8da6289fbe53ac46916ad109072bae"
     },
     {
       "source": "magicrampage/INSTALLATION.md",
@@ -239,7 +239,7 @@
       "target": "magicrampage/version.txt",
       "kind": "payload",
       "mode": "0644",
-      "sha256": "77123b8e4bdbd54505bf6e8021527ac60281602a06fe307564532c4dba39dbca"
+      "sha256": "5dae0c0a5ed3cdaa78704e25bb38d72c31018311e933283d06ed4f93360bfc6c"
     },
     {
       "source": "magicrampage/FRAMEWORK-PIN.json",
@@ -253,14 +253,14 @@
       "target": "magicrampage/GENERATION.json",
       "kind": "payload",
       "mode": "0644",
-      "sha256": "f69c598843538e720effe6f4c95b448d1f0b5738958c5c1e9ab13a21751f69f6"
+      "sha256": "5cf5f5aca3d4db81155fd258a0035a525c05956e569671f5eaf8bbe3b8ecbda1"
     },
     {
       "source": "magicrampage/adapter/adapter-contract.json",
       "target": "magicrampage/adapter/adapter-contract.json",
       "kind": "payload",
       "mode": "0644",
-      "sha256": "ce6b54269f004be78b7ab61c4af242aae9052798facb18d47b5f8a7beed6ece6"
+      "sha256": "09062374314dc976050c7e2f05f5b5e551e29b4e205b04a5640cae32098d3b04"
     },
     {
       "source": "magicrampage/gamedata/README.txt",

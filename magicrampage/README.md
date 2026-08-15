@@ -58,6 +58,7 @@ globally.
 | Move | D-pad or left stick |
 | Jump / up | A or D-pad up |
 | Attack | X, Y or R1 |
+| Inventory | L1 |
 | Accept | B or Start |
 | Cancel | Select |
 | Exit port | Select + Start |
@@ -145,6 +146,7 @@ de vídeo é forçado globalmente.
 | Mover | Direcional ou analógico esquerdo |
 | Pular / cima | A ou direcional para cima |
 | Atacar | X, Y ou R1 |
+| Inventário | L1 |
 | Confirmar | B ou Start |
 | Cancelar | Select |
 | Sair do port | Select + Start |

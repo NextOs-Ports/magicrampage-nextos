@@ -13,14 +13,11 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 RC2 = "v1.0.0-rc2"
 V111 = "v1.1.1"
 EXPECTED_BINARY_SHA256 = (
-    "237f83b37363365c73780e3176c554b12af64032cc4889c182e6c1cb761bf7d4"
+    "0b10c6c96de082cec9923d0fa32c4541c13495908b3465096a6f91481b3040e8"
 )
 IMMUTABLE_PATHS = (
     "Dockerfile.glibc230",
     "build-glibc230.sh",
-    "src",
-    "magicrampage/bin",
-    "magicrampage/adapter",
     "magicrampage/port-env.sh",
     "magicrampage/port.json",
 )
@@ -60,6 +57,12 @@ def require_no_diff(left: str, right: str | None, paths: tuple[str, ...]) -> Non
         fail(result.stderr.strip() or "git diff could not compare validated bytes")
 
 
+def replace_once(text: str, old: str, new: str, label: str) -> str:
+    if text.count(old) != 1:
+        fail("historical source shape drifted: " + label)
+    return text.replace(old, new, 1)
+
+
 for reference in (RC2, V111):
     git("rev-parse", "--verify", reference + "^{commit}")
 
@@ -67,6 +70,68 @@ for reference in (RC2, V111):
 # makes the migration gate prove continuity instead of trusting a copied hash.
 require_no_diff(RC2, V111, IMMUTABLE_PATHS)
 require_no_diff(V111, None, IMMUTABLE_PATHS)
+
+# Version 1.1.3 changes only the engine-owned input adapter: the native I-key
+# slot receives keyboard I or L1. All other source files remain byte-identical
+# to the physically playable v1.1.1 baseline.
+source_paths = tuple(
+    path
+    for path in git("ls-tree", "-r", "--name-only", V111, "--", "src").stdout.splitlines()
+    if path != "src/main.c"
+)
+require_no_diff(RC2, V111, source_paths)
+require_no_diff(V111, None, source_paths)
+
+expected_main = git("show", V111 + ":src/main.c").stdout
+expected_main = replace_once(
+    expected_main,
+    "  GS_KEY_D = 46,\n  GS_KEY_S = 61,",
+    "  GS_KEY_D = 46,\n  GS_KEY_I = 51,\n  GS_KEY_S = 61,",
+    "GS2D I-key enum",
+)
+expected_main = replace_once(
+    expected_main,
+    "  int accept = keys[SDL_SCANCODE_RETURN] ||",
+    "  int inventory = keys[SDL_SCANCODE_I] ||\n"
+    "                  controller_button_down(SDL_CONTROLLER_BUTTON_LEFTSHOULDER);\n"
+    "  int accept = keys[SDL_SCANCODE_RETURN] ||",
+    "L1 inventory sampling",
+)
+expected_main = replace_once(
+    expected_main,
+    "  if (accept && !(g_input_evidence & 8u)) {",
+    "  if (inventory && !(g_input_evidence & 32u)) {\n"
+    "    fprintf(stderr, \"[input] evidence inventory=OK\\n\");\n"
+    "    g_input_evidence |= 32u;\n"
+    "  }\n"
+    "  if (accept && !(g_input_evidence & 8u)) {",
+    "inventory diagnostic",
+)
+expected_main = replace_once(
+    expected_main,
+    "  update_android_key(self, GS_KEY_SPACE, attack);\n"
+    "  update_android_key(self, GS_KEY_ENTER, accept);",
+    "  update_android_key(self, GS_KEY_SPACE, attack);\n"
+    "  update_android_key(self, GS_KEY_I, inventory);\n"
+    "  update_android_key(self, GS_KEY_ENTER, accept);",
+    "inventory publication",
+)
+actual_main = (ROOT / "src/main.c").read_text(encoding="utf-8")
+if actual_main != expected_main:
+    fail("src/main.c changed outside the approved L1-to-I inventory delta")
+
+baseline_adapter = git("show", V111 + ":magicrampage/adapter/adapter-contract.json").stdout
+expected_adapter = replace_once(
+    baseline_adapter,
+    '    "mapping": "SDL GameController to gs2d KeyStateManager at engine-owned update point",',
+    '    "mapping": "SDL GameController to gs2d KeyStateManager at engine-owned update point; L1 publishes the native I-key inventory action",',
+    "adapter inventory contract",
+)
+actual_adapter = (ROOT / "magicrampage/adapter/adapter-contract.json").read_text(
+    encoding="utf-8"
+)
+if actual_adapter != expected_adapter:
+    fail("adapter contract changed outside the approved inventory description")
 
 # Version 1.1.2 deliberately adds the strongly validated 7.8.7 bundle shape.
 # Prove that the only recipe changes from the playable 7.8.2 baseline are its
@@ -103,6 +168,6 @@ for path in (tracked_binary, build_binary):
 
 print(
     "magicrampage runtime preservation gate: PASS "
-    "rc2=v1.0.0-rc2 baseline=v1.1.1 src=identical runtime=identical "
+    "rc2=v1.0.0-rc2 baseline=v1.1.1 inventory_delta=L1-to-I-only "
     "recipe_delta=version+max_bundle_apks-only"
 )

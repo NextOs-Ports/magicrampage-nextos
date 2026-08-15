@@ -25,7 +25,7 @@ NXBOOTSTRAP_ROOT="$FRAMEWORK_ROOT/nxbootstrap"
 NXSPLASH_ROOT="$FRAMEWORK_ROOT/nxsplash"
 NXEXTRACT_ROOT="$FRAMEWORK_ROOT/../suportando_outros_devices/extrator-universal"
 MANIFEST="$REPOSITORY_ROOT/nxrelease.json"
-DESTINATION=${1:-"$REPOSITORY_ROOT/dist/v1.1.2"}
+DESTINATION=${1:-"$REPOSITORY_ROOT/dist/v1.1.3"}
 ARCHIVE_NAME=magicrampage.zip
 
 fail() {
@@ -109,6 +109,7 @@ require_pinned_file \
   'vendored NXExtract UI AArch64 artifact'
 
 python3 -B "$SCRIPT_DIR/check-runtime-preservation.py"
+python3 -B "$REPOSITORY_ROOT/tests/test_inventory_mapping.py"
 python3 -B "$SCRIPT_DIR/check-generation.py"
 python3 -B "$SCRIPT_DIR/check-installation.py" \
   "$REPOSITORY_ROOT/magicrampage/extractor.json" \
