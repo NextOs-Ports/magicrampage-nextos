@@ -39,7 +39,7 @@
     "ui_path": "magicrampage/nxextract/nxextract-ui",
     "ui_sha256": "7ca901d8515ab9a084be81e05888e1fd03cec80fb03896df6331c1c95698ef56",
     "recipe_path": "magicrampage/extractor.json",
-    "recipe_sha256": "f6ba35d482551c383ad6a99241e5d4bbf740b232e858c175ba9ee9476561dcf2"
+    "recipe_sha256": "655c4715e999c780605ebad60bf379abaf4525f2de7039fdf3ae68e1fa1e1938"
   },
   "dependencies": [
     {
@@ -161,7 +161,7 @@
       "target": "magicrampage/extractor.json",
       "kind": "nxextract-recipe",
       "mode": "0644",
-      "sha256": "f6ba35d482551c383ad6a99241e5d4bbf740b232e858c175ba9ee9476561dcf2"
+      "sha256": "655c4715e999c780605ebad60bf379abaf4525f2de7039fdf3ae68e1fa1e1938"
     },
     {
       "source": "magicrampage/nxextract/nxextract.py",
@@ -211,14 +211,14 @@
       "target": "magicrampage/README.md",
       "kind": "payload",
       "mode": "0644",
-      "sha256": "f4d27f373fe175e438dacb0a30aecfb2dcc8ae95e63cfa5ba447e8c482b505cf"
+      "sha256": "8b1dd812dd886e80c9c012c5125c9916933ac729571cc1e930063ec16c25130a"
     },
     {
       "source": "magicrampage/INSTALLATION.md",
       "target": "magicrampage/INSTALLATION.md",
       "kind": "payload",
       "mode": "0644",
-      "sha256": "5393aef7e83d7092b362fdd06c6851691c094313fe70b71fd73294646c83ea34"
+      "sha256": "54c3bb88664f13fa08f0e21a0a887e24d92cdb213368519b9c38beffa1722855"
     },
     {
       "source": "magicrampage/LICENSE",
@@ -253,7 +253,7 @@
       "target": "magicrampage/GENERATION.json",
       "kind": "payload",
       "mode": "0644",
-      "sha256": "7603ba85ae419102ffc9ebdb77632d42c8aa8820a0d993440aafcbd0260e01b6"
+      "sha256": "f69c598843538e720effe6f4c95b448d1f0b5738958c5c1e9ab13a21751f69f6"
     },
     {
       "source": "magicrampage/adapter/adapter-contract.json",
@@ -267,7 +267,7 @@
       "target": "magicrampage/gamedata/README.txt",
       "kind": "payload",
       "mode": "0644",
-      "sha256": "76179a923b3d571ff0910b7d81f5f32afade7b85a9af2028b49d3bf8f180a276"
+      "sha256": "addba4a7bec14fcbb5113f32166dd577b4de79317684e39d3a25a2e6a0f88231"
     },
     {
       "source": "magicrampage/licenses/NXExtract-MIT.txt",

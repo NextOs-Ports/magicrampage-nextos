@@ -13,17 +13,21 @@
    five-second bilingual **RETRO ELITE / NEXTOS** screen appears on every launch before
    the game, including launches where the data is already installed.
 
-Tested reference owner APK:
+Tested reference owner data:
 
-- Game: Magic Rampage 7.8.2
 - Package ID: `com.asanteegames.magicrampage`
 - ABI used by this port: `arm64-v8a` (AArch64 only)
-- Reference filename: `magic-rampage-7.8.2-mod-t-5play.apk`
-- APK size: `162114946` bytes
-- APK SHA-256: `91adf146037def58867c23e705a26284d56adce7b56787b6e7eea417473021e6`
+- Game/build 1: Magic Rampage 7.8.2; APK size `162114946` bytes; APK
+  SHA-256 `91adf146037def58867c23e705a26284d56adce7b56787b6e7eea417473021e6`.
+- Game/build 2: Magic Rampage 7.8.7 (version code 1214); APKM size
+  `170894843` bytes; APKM SHA-256
+  `23f72590c725b2c4457136614e95f641be320b61e7f2db2453a934f77b905ae4`.
+  Its selected base APK is `147950103` bytes, SHA-256
+  `f2602fdda59f1326dc7d6045893373e14397fe80b5d3800892e7067b9c3cdaa9`.
 
-Compatible 7.8.2 packaging variants may have a different APK filename, size and
-whole-file SHA-256. They are accepted only when NXExtract proves all of these:
+Compatible 7.8.2 or 7.8.7 packaging variants may have a different container
+name, size and whole-file SHA-256. They are accepted only when NXExtract proves
+all of these:
 
 - package ID `com.asanteegames.magicrampage`, ABI `arm64-v8a`, ZIP/APK magic and
   container size from `134217728` through `268435456` bytes;
@@ -53,17 +57,21 @@ an unrestricted APK bypass.
    obrigatória **RETRO ELITE / NEXTOS** aparece por cinco segundos em toda abertura,
    inclusive quando os dados já estão instalados.
 
-APK de referência testado:
+Dados de referência testados:
 
-- Jogo: Magic Rampage 7.8.2
 - Package ID: `com.asanteegames.magicrampage`
 - ABI usada pelo port: `arm64-v8a` (somente AArch64)
-- Nome de referência: `magic-rampage-7.8.2-mod-t-5play.apk`
-- Tamanho do APK: `162114946` bytes
-- SHA-256 do APK: `91adf146037def58867c23e705a26284d56adce7b56787b6e7eea417473021e6`
+- Jogo/build 1: Magic Rampage 7.8.2; APK com `162114946` bytes; SHA-256
+  `91adf146037def58867c23e705a26284d56adce7b56787b6e7eea417473021e6`.
+- Jogo/build 2: Magic Rampage 7.8.7 (version code 1214); APKM com
+  `170894843` bytes; SHA-256
+  `23f72590c725b2c4457136614e95f641be320b61e7f2db2453a934f77b905ae4`.
+  O APK base selecionado tem `147950103` bytes, SHA-256
+  `f2602fdda59f1326dc7d6045893373e14397fe80b5d3800892e7067b9c3cdaa9`.
 
-Variantes de empacotamento compatíveis da versão 7.8.2 podem ter outro nome,
-tamanho e SHA-256 do APK completo. Elas só são aceitas quando o NXExtract comprova:
+Variantes de empacotamento compatíveis das versões 7.8.2 ou 7.8.7 podem ter
+outro nome, tamanho e SHA-256 do container completo. Elas só são aceitas quando
+o NXExtract comprova:
 
 - package ID `com.asanteegames.magicrampage`, ABI `arm64-v8a`, magic ZIP/APK e
   tamanho do container entre `134217728` e `268435456` bytes;

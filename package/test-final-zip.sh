@@ -10,7 +10,7 @@ SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
 REPOSITORY_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd -P)
 ARCHIVE=${1:-"$REPOSITORY_ROOT/dist/v1.1.2/magicrampage.zip"}
 APK=${MAGICRAMPAGE_APK:-}
-EXPECTED_APK_SHA256=${MAGICRAMPAGE_EXPECT_APK_SHA256:-91adf146037def58867c23e705a26284d56adce7b56787b6e7eea417473021e6}
+EXPECTED_APK_SHA256=${MAGICRAMPAGE_EXPECT_APK_SHA256:-23f72590c725b2c4457136614e95f641be320b61e7f2db2453a934f77b905ae4}
 
 fail() {
   printf 'magicrampage final ZIP gate: FAIL: %s\n' "$*" >&2
@@ -48,6 +48,31 @@ unzip -q "$ARCHIVE" -d "$PORTS_ROOT"
 
 [[ -f $PORTS_ROOT/magicrampage/INSTALLATION.md ]] ||
   fail 'INSTALLATION.md is absent from the final ZIP'
+python3 -B - "$PORTS_ROOT" <<'PY'
+import pathlib
+import re
+import sys
+
+root = pathlib.Path(sys.argv[1])
+for path in root.rglob("*"):
+    if not path.is_file():
+        continue
+    if path.suffix.lower() not in {".md", ".txt", ".json", ".xml"} and \
+            path.name not in {"LICENSE", "NOTICE"}:
+        continue
+    try:
+        text = path.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        continue
+    match = re.search(r"(?i)\b(?:5play|apkvision|mod|hack)\b", text)
+    if match:
+        raise SystemExit(
+            "prohibited distribution label in %s: %s" %
+            (path.relative_to(root), match.group(0))
+        )
+    if "Reference filename:" in text or "Nome de referência:" in text:
+        raise SystemExit("owner source filename leaked in " + str(path.relative_to(root)))
+PY
 [[ -x $PORTS_ROOT/Magic\ Rampage.sh ]] || fail 'launcher mode was lost'
 [[ -x $PORTS_ROOT/magicrampage/nxsplash-nextos ]] ||
   fail 'nxsplash mode was lost'

@@ -13,7 +13,7 @@
     {
       "mode": "0644",
       "path": "magicrampage/README.md",
-      "sha256": "f4d27f373fe175e438dacb0a30aecfb2dcc8ae95e63cfa5ba447e8c482b505cf"
+      "sha256": "8b1dd812dd886e80c9c012c5125c9916933ac729571cc1e930063ec16c25130a"
     },
     {
       "mode": "0644",
@@ -23,7 +23,7 @@
     {
       "mode": "0644",
       "path": "magicrampage/extractor.json",
-      "sha256": "f6ba35d482551c383ad6a99241e5d4bbf740b232e858c175ba9ee9476561dcf2"
+      "sha256": "655c4715e999c780605ebad60bf379abaf4525f2de7039fdf3ae68e1fa1e1938"
     },
     {
       "mode": "0644",
@@ -94,7 +94,7 @@
         "nxextract.py": "7c9d44df71cbe06ff24266c3fa73f08d14ad72973c532d8ef0808af7756a4901",
         "run-extractor.sh": "c931427c7226d22d7e30eee8549b50f0621dca1c9d0336634aca08631f454d7a"
       },
-      "recipe_sha256": "f6ba35d482551c383ad6a99241e5d4bbf740b232e858c175ba9ee9476561dcf2",
+      "recipe_sha256": "655c4715e999c780605ebad60bf379abaf4525f2de7039fdf3ae68e1fa1e1938",
       "ui_artifact": {
         "architecture": "aarch64",
         "mode": "0755",

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import pathlib
 import subprocess
 
@@ -23,10 +24,9 @@ IMMUTABLE_PATHS = (
     "magicrampage/port-env.sh",
     "magicrampage/port.json",
 )
-RECIPE_PATHS = (
-    "project/extractor.json",
-    "magicrampage/extractor.json",
-)
+RECIPE_PATHS = ("project/extractor.json", "magicrampage/extractor.json")
+EXPECTED_RECIPE_VERSION = "7.8.2-7.8.7-aarch64-3"
+EXPECTED_BUNDLE_APK_LIMIT = 64
 
 
 def fail(message: str) -> None:
@@ -67,7 +67,30 @@ for reference in (RC2, V111):
 # makes the migration gate prove continuity instead of trusting a copied hash.
 require_no_diff(RC2, V111, IMMUTABLE_PATHS)
 require_no_diff(V111, None, IMMUTABLE_PATHS)
-require_no_diff(V111, None, RECIPE_PATHS)
+
+# Version 1.1.2 deliberately adds the strongly validated 7.8.7 bundle shape.
+# Prove that the only recipe changes from the playable 7.8.2 baseline are its
+# visible contract label and the bounded inner-APK count (32 observed, 64 cap).
+current_recipes = []
+for relative in RECIPE_PATHS:
+    baseline = json.loads(git("show", V111 + ":" + relative).stdout)
+    current = json.loads((ROOT / relative).read_text(encoding="utf-8"))
+    if current.get("version") != EXPECTED_RECIPE_VERSION:
+        fail("unexpected current recipe version: " + relative)
+    if current.get("input", {}).get("max_bundle_apks") != EXPECTED_BUNDLE_APK_LIMIT:
+        fail("unexpected current bundle APK limit: " + relative)
+    if baseline.get("version") != "7.8.2-aarch64-2":
+        fail("historical recipe version drifted: " + relative)
+    if baseline.get("input", {}).get("max_bundle_apks") != 16:
+        fail("historical bundle APK limit drifted: " + relative)
+    normalized = json.loads(json.dumps(current))
+    normalized["version"] = baseline["version"]
+    normalized["input"]["max_bundle_apks"] = baseline["input"]["max_bundle_apks"]
+    if normalized != baseline:
+        fail("recipe changed outside the approved 7.8.7 bundle delta: " + relative)
+    current_recipes.append(current)
+if current_recipes[0] != current_recipes[1]:
+    fail("source and vendored recipes differ")
 
 tracked_binary = ROOT / "magicrampage/bin/aarch64/magicrampage-nextos"
 build_binary = ROOT / "build/magicrampage-nextos"
@@ -80,5 +103,6 @@ for path in (tracked_binary, build_binary):
 
 print(
     "magicrampage runtime preservation gate: PASS "
-    "rc2=v1.0.0-rc2 baseline=v1.1.1 src=identical runtime=identical recipe=identical"
+    "rc2=v1.0.0-rc2 baseline=v1.1.1 src=identical runtime=identical "
+    "recipe_delta=version+max_bundle_apks-only"
 )

@@ -4,9 +4,10 @@ English | [Português](#português)
 
 ## English
 
-This repository contains the open-source Linux adapter for **Magic Rampage
-7.8.2**. It runs the owner's original Android AArch64 game library through the
-native lifecycle; the APK and proprietary libraries are never redistributed.
+This repository contains the open-source Linux adapter for compatible owner
+data from **Magic Rampage 7.8.2 and 7.8.7**. It runs the owner's original
+Android AArch64 game library through the native lifecycle; proprietary data is
+never redistributed.
 
 ### Architecture and framework
 
@@ -39,10 +40,11 @@ on 2026-08-14:
 - NextOS, Mali-450, AArch64: native Mali/GLES 2.0 video and playable runtime.
 - R36S ArkOS, Mali-G31, AArch64: KMSDRM/GLES 3.2 video and playable runtime.
 
-On both families, NXExtract accepted the documented reference owner APK, the mandatory
-five-second hand-off completed, and the original native lifecycle reached the
-game runtime. Music/SFX, controller and gameplay remain covered by the
-established playable baseline.
+On both families, NXExtract accepted the documented 7.8.2 reference, the
+mandatory five-second hand-off completed, and the original native lifecycle
+reached the game runtime. Music/SFX, controller and gameplay remain covered by
+the established playable baseline. The 7.8.7 APKM passed host plan, complete
+extraction and verification; its exact physical ArkOS test is still pending.
 
 The adapter first preserves the firmware/PortMaster SDL provider selection. On
 the proven R36S firmware only, a failed SDL window creation permits one narrow
@@ -62,11 +64,11 @@ globally.
 
 ### Owner data and installation
 
-See [INSTALLATION.md](INSTALLATION.md). The documented reference is the legally
-owned Magic Rampage 7.8.2 APK for `com.asanteegames.magicrampage`, with exact
-size and SHA-256. Compatible packaging variants are gated by package, ABI,
-container bounds and exact critical payload hashes. Saves remain inside the
-port's `user/` directories.
+See [INSTALLATION.md](INSTALLATION.md). The documented legal references cover
+Magic Rampage 7.8.2 and 7.8.7 for `com.asanteegames.magicrampage`, with exact
+container sizes and SHA-256 values. Compatible packaging variants are gated by
+package, ABI, container bounds and exact critical payload hashes. Saves remain
+inside the port's `user/` directories.
 
 ### Build
 
@@ -89,9 +91,10 @@ owner.
 
 ## Português
 
-Este repositório contém o adapter Linux de código aberto para **Magic Rampage
-7.8.2**. Ele executa a biblioteca Android AArch64 original do dono seguindo o
-lifecycle nativo; o APK e as bibliotecas proprietárias nunca são redistribuídos.
+Este repositório contém o adapter Linux de código aberto para dados compatíveis
+do dono de **Magic Rampage 7.8.2 e 7.8.7**. Ele executa a biblioteca Android
+AArch64 original seguindo o lifecycle nativo; dados proprietários nunca são
+redistribuídos.
 
 ### Arquitetura e framework
 
@@ -124,10 +127,11 @@ O baseline jogável estabelecido foi verificado fisicamente na release 1.1.0 em
 - NextOS, Mali-450, AArch64: vídeo Mali/GLES 2.0 nativo e runtime jogável.
 - R36S ArkOS, Mali-G31, AArch64: vídeo KMSDRM/GLES 3.2 e runtime jogável.
 
-Nas duas famílias, o NXExtract aceitou o APK de referência documentado, a transição
-obrigatória de cinco segundos terminou e o lifecycle nativo original chegou ao
-runtime do jogo. Música/efeitos, controle e gameplay continuam cobertos pelo
-baseline jogável estabelecido.
+Nas duas famílias, o NXExtract aceitou a referência 7.8.2 documentada, a
+transição obrigatória de cinco segundos terminou e o lifecycle nativo original
+chegou ao runtime do jogo. Música/efeitos, controle e gameplay continuam
+cobertos pelo baseline jogável. O APKM 7.8.7 passou por plan, extração completa
+e verificação no host; ainda falta o teste físico exato no ArkOS.
 
 O adapter preserva primeiro a escolha SDL do firmware/PortMaster. Somente no
 firmware R36S comprovado, uma falha real ao criar a janela permite uma única
@@ -147,11 +151,11 @@ de vídeo é forçado globalmente.
 
 ### Dados do dono e instalação
 
-Veja [INSTALLATION.md](INSTALLATION.md). A referência documentada é o APK
-legalmente obtido do Magic Rampage 7.8.2, pacote
-`com.asanteegames.magicrampage`, com tamanho e SHA-256 exatos. Variantes de
-empacotamento compatíveis passam por package, ABI, limites do container e hashes
-exatos dos payloads críticos. Os saves permanecem nas pastas `user/` do port.
+Veja [INSTALLATION.md](INSTALLATION.md). As referências legais documentadas
+cobrem Magic Rampage 7.8.2 e 7.8.7, pacote
+`com.asanteegames.magicrampage`, com tamanhos e SHA-256 exatos. Variantes
+compatíveis passam por package, ABI, limites do container e hashes exatos dos
+payloads críticos. Os saves permanecem nas pastas `user/` do port.
 
 ### Compilação
 

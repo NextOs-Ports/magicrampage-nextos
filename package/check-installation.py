@@ -3,6 +3,7 @@
 
 import json
 import pathlib
+import re
 import sys
 
 
@@ -28,11 +29,19 @@ recipe_text = recipe_path.read_text(encoding="utf-8")
 
 expected_package = "com.asanteegames.magicrampage"
 expected_abi = "arm64-v8a"
-expected_version = "7.8.2"
-expected_recipe_version = "7.8.2-aarch64-2"
-reference_size = 162114946
-reference_sha256 = (
+expected_versions = ("7.8.2", "7.8.7")
+expected_recipe_version = "7.8.2-7.8.7-aarch64-3"
+reference_782_size = 162114946
+reference_782_sha256 = (
     "91adf146037def58867c23e705a26284d56adce7b56787b6e7eea417473021e6"
+)
+reference_787_size = 170894843
+reference_787_sha256 = (
+    "23f72590c725b2c4457136614e95f641be320b61e7f2db2453a934f77b905ae4"
+)
+reference_787_base_size = 147950103
+reference_787_base_sha256 = (
+    "f2602fdda59f1326dc7d6045893373e14397fe80b5d3800892e7067b9c3cdaa9"
 )
 minimum_size = 134217728
 maximum_size = 268435456
@@ -67,8 +76,18 @@ critical_payloads = {
     ),
 }
 
-if reference_sha256 in recipe_text:
-    fail("reference whole-APK SHA-256 was accidentally promoted to a recipe lock")
+for container_sha256 in (
+    reference_782_sha256,
+    reference_787_sha256,
+    reference_787_base_sha256,
+):
+    if container_sha256 in recipe_text:
+        fail("reference whole-container SHA-256 became a recipe lock")
+if re.search(r"(?i)\b(?:5play|apkvision|mod|hack)\b", installation):
+    fail("INSTALLATION.md exposes a prohibited distribution label")
+for removed_label in ("Reference filename:", "Nome de referência:"):
+    if removed_label in installation:
+        fail("INSTALLATION.md exposes an unnecessary source filename")
 for forbidden in ("SDL or active terminal", "SDL ou terminal ativo"):
     if forbidden in installation:
         fail("INSTALLATION.md still permits the quarantined terminal renderer")
@@ -81,10 +100,12 @@ for required_text in (
 
 if recipe.get("input", {}).get("packages") != [expected_package]:
     fail("package ID differs from the accepted owner data")
+if recipe.get("input", {}).get("max_bundle_apks") != 64:
+    fail("bundle member ceiling must safely cover the 32-member 7.8.7 APKM")
 if recipe.get("abi_order") != [expected_abi]:
     fail("ABI differs from the accepted owner data")
 if recipe.get("version") != expected_recipe_version:
-    fail("recipe version does not identify the flexible 7.8.2 contract")
+    fail("recipe version does not identify the 7.8.2/7.8.7 contract")
 
 owner_entries = [
     item for item in recipe.get("extract", []) if item.get("id") == "owner-apk"
@@ -139,11 +160,17 @@ for rule_id, (pattern, destination, size, sha256) in critical_payloads.items():
         fail("critical final identity drifted: " + destination)
 
 for token, label in (
-    (expected_version, "game version"),
+    (expected_versions[0], "7.8.2 game version"),
+    (expected_versions[1], "7.8.7 game version"),
+    ("1214", "7.8.7 version code"),
     (expected_package, "package ID"),
     (expected_abi, "ABI"),
-    (str(reference_size), "reference APK size"),
-    (reference_sha256, "reference APK SHA-256"),
+    (str(reference_782_size), "7.8.2 reference APK size"),
+    (reference_782_sha256, "7.8.2 reference APK SHA-256"),
+    (str(reference_787_size), "7.8.7 reference APKM size"),
+    (reference_787_sha256, "7.8.7 reference APKM SHA-256"),
+    (str(reference_787_base_size), "7.8.7 base APK size"),
+    (reference_787_base_sha256, "7.8.7 base APK SHA-256"),
     (str(minimum_size), "minimum compatible APK size"),
     (str(maximum_size), "maximum compatible APK size"),
     *[(value[3], rule_id + " SHA-256") for rule_id, value in critical_payloads.items()],
