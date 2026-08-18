@@ -397,7 +397,11 @@ void audio_backend_play_sample(const char *name, int loops) {
     int ch;
     Mix_VolumeChunk(sfx->chunk,
                     mix_volume(g_global_volume * g_sfx_volume * sfx->volume));
-    ch = Mix_PlayChannel(-1, sfx->chunk, loops);
+    /* Mix_PlayChannel e' macro -> Mix_PlayChannelTimed na maioria das SDL_mixer,
+     * mas alguns SDKs a exportam como simbolo real: o loader ganhava UND
+     * Mix_PlayChannel e crashava com "undefined symbol" no 1o som (spruce/Mali-G52).
+     * Chamar a funcao real (universal em toda SDL_mixer) elimina a dependencia. */
+    ch = Mix_PlayChannelTimed(-1, sfx->chunk, loops, -1);
     if (ch >= 0) {
       Uint8 left = 255, right = 255;
       if (sfx->pan < -0.01f)

@@ -13,11 +13,14 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 RC2 = "v1.0.0-rc2"
 V111 = "v1.1.1"
 EXPECTED_BINARY_SHA256 = (
-    "0b10c6c96de082cec9923d0fa32c4541c13495908b3465096a6f91481b3040e8"
+    "83b6b51f7e1112f23e52b8e89e9f36768a0456eee55b8e81e7c1e8738f9c3f99"
 )
-IMMUTABLE_PATHS = (
-    "Dockerfile.glibc230",
-    "build-glibc230.sh",
+IMMUTABLE_PATHS = ("Dockerfile.glibc230",)
+# v1.1.4 vendors the nxinput 0.4.0 exit-chord header (compiled into the loader).
+# Pin its bytes so the runtime code shipped stays exactly the audited 0.4.0.
+NXINPUT_CHORD_HEADER = "vendor/nxinput/include/nxinput_evdev_chord.h"
+EXPECTED_NXINPUT_CHORD_SHA256 = (
+    "813e3e7a43c4a065bad77171e8d290ac451e3098ae0cdf9dc352b72702754625"
 )
 RECIPE_PATHS = ("project/extractor.json", "magicrampage/extractor.json")
 EXPECTED_RECIPE_VERSION = "7.8.2-7.8.7-aarch64-3"
@@ -69,16 +72,50 @@ for reference in (RC2, V111):
 require_no_diff(RC2, V111, IMMUTABLE_PATHS)
 require_no_diff(V111, None, IMMUTABLE_PATHS)
 
+# build-glibc230.sh: the ONLY approved change from v1.1.1 is adding the include
+# dirs the vendored nxinput 0.4.0 header needs (its own dir + the SDK's SDL2/ dir,
+# because the header does #include <SDL.h>). No compiler/link flags otherwise.
+expected_build = git("show", V111 + ":build-glibc230.sh").stdout
+expected_build = replace_once(
+    expected_build,
+    "  -I /src/src -idirafter /sdk/usr/include \\\n",
+    "  -I /src/src -I /src/vendor/nxinput/include \\\n"
+    "  -idirafter /sdk/usr/include -idirafter /sdk/usr/include/SDL2 \\\n",
+    "nxinput include dirs",
+)
+actual_build = (ROOT / "build-glibc230.sh").read_text(encoding="utf-8")
+if actual_build != expected_build:
+    fail("build-glibc230.sh changed outside the approved nxinput include-dir delta")
+
 # Version 1.1.3 changes only the engine-owned input adapter: the native I-key
 # slot receives keyboard I or L1. All other source files remain byte-identical
 # to the physically playable v1.1.1 baseline.
 source_paths = tuple(
     path
     for path in git("ls-tree", "-r", "--name-only", V111, "--", "src").stdout.splitlines()
-    if path != "src/main.c"
+    if path not in ("src/main.c", "src/audio_backend.c")
 )
 require_no_diff(RC2, V111, source_paths)
 require_no_diff(V111, None, source_paths)
+
+# src/audio_backend.c: the ONLY approved change from v1.1.1 is calling the real
+# Mix_PlayChannelTimed instead of the Mix_PlayChannel macro. Some SDL_mixer SDKs
+# export Mix_PlayChannel as a real symbol, so the loader carried an undefined
+# Mix_PlayChannel and crashed on the first sound (spruce/Mali-G52, status 127).
+expected_audio = git("show", V111 + ":src/audio_backend.c").stdout
+expected_audio = replace_once(
+    expected_audio,
+    "    ch = Mix_PlayChannel(-1, sfx->chunk, loops);\n",
+    "    /* Mix_PlayChannel e' macro -> Mix_PlayChannelTimed na maioria das SDL_mixer,\n"
+    "     * mas alguns SDKs a exportam como simbolo real: o loader ganhava UND\n"
+    "     * Mix_PlayChannel e crashava com \"undefined symbol\" no 1o som (spruce/Mali-G52).\n"
+    "     * Chamar a funcao real (universal em toda SDL_mixer) elimina a dependencia. */\n"
+    "    ch = Mix_PlayChannelTimed(-1, sfx->chunk, loops, -1);\n",
+    "Mix_PlayChannelTimed universal symbol",
+)
+actual_audio = (ROOT / "src/audio_backend.c").read_text(encoding="utf-8")
+if actual_audio != expected_audio:
+    fail("src/audio_backend.c changed outside the approved Mix_PlayChannelTimed delta")
 
 expected_main = git("show", V111 + ":src/main.c").stdout
 expected_main = replace_once(
@@ -114,9 +151,84 @@ expected_main = replace_once(
     "  update_android_key(self, GS_KEY_ENTER, accept);",
     "inventory publication",
 )
+# v1.1.4 also replaces the event-latch exit combo (BACK+START tracked by event,
+# which stuck when a release was lost and closed the game on START alone) with the
+# canonical nxinput 0.4.0 state-poll. Three disjoint edits, none touching the
+# I-key sampling region above.
+expected_main = replace_once(
+    expected_main,
+    '#include "audio_backend.h"\n'
+    '#include "jni_min.h"\n'
+    '#include "so_util.h"\n'
+    '#include "util.h"\n',
+    '#include "audio_backend.h"\n'
+    '#include "jni_min.h"\n'
+    '#include "so_util.h"\n'
+    '#include "util.h"\n'
+    "\n"
+    "/* Exit-chord canonico (nxinput 0.4.0): SELECT+START por ESTADO vivo do SDL,\n"
+    " * com hold de 3 polls e log de controle. Substitui o latch por-evento que\n"
+    " * grudava BACK e fechava o jogo com START sozinho no Knulli/RG34XX-SP. */\n"
+    "#define NXINPUT_EVDEV_CHORD_IMPLEMENTATION\n"
+    '#include "nxinput_evdev_chord.h"\n',
+    "nxinput chord include",
+)
+expected_main = replace_once(
+    expected_main,
+    "  int running = 1;\n"
+    "  int back_down = 0;\n"
+    "  int start_down = 0;\n"
+    "  unsigned frame = 0;\n"
+    "  while (running) {\n"
+    "    SDL_Event e;\n"
+    "    while (SDL_PollEvent(&e)) {\n"
+    "      if (e.type == SDL_QUIT)\n"
+    "        running = 0;\n"
+    "      else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE)\n"
+    "        running = 0;\n"
+    "      else if (e.type == SDL_CONTROLLERBUTTONDOWN ||\n"
+    "               e.type == SDL_CONTROLLERBUTTONUP) {\n"
+    "        int down = e.type == SDL_CONTROLLERBUTTONDOWN;\n"
+    "        if (e.cbutton.button == SDL_CONTROLLER_BUTTON_BACK)\n"
+    "          back_down = down;\n"
+    "        if (e.cbutton.button == SDL_CONTROLLER_BUTTON_START)\n"
+    "          start_down = down;\n"
+    "        if (back_down && start_down)\n"
+    "          running = 0;\n"
+    "      } else if (e.type == SDL_WINDOWEVENT &&\n",
+    "  int running = 1;\n"
+    "  unsigned frame = 0;\n"
+    "  while (running) {\n"
+    "    SDL_Event e;\n"
+    "    while (SDL_PollEvent(&e)) {\n"
+    "      if (e.type == SDL_QUIT)\n"
+    "        running = 0;\n"
+    "      else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE)\n"
+    "        running = 0;\n"
+    "      else if (e.type == SDL_WINDOWEVENT &&\n",
+    "event-latch removal",
+)
+expected_main = replace_once(
+    expected_main,
+    "        GS_resize(jni_env(), jni_class(), width, height);\n"
+    "      }\n"
+    "    }\n"
+    "\n"
+    "    void *ret = GS_mainLoop(jni_env(), jni_class(), NULL);\n",
+    "        GS_resize(jni_env(), jni_class(), width, height);\n"
+    "      }\n"
+    "    }\n"
+    "\n"
+    "    /* SELECT+START por ESTADO vivo (nxinput 0.4.0): imune a release perdido. */\n"
+    "    if (nx_exit_chord_update(&g_controller, g_controller ? 1 : 0))\n"
+    "      running = 0;\n"
+    "\n"
+    "    void *ret = GS_mainLoop(jni_env(), jni_class(), NULL);\n",
+    "state-poll chord insertion",
+)
 actual_main = (ROOT / "src/main.c").read_text(encoding="utf-8")
 if actual_main != expected_main:
-    fail("src/main.c changed outside the approved L1-to-I inventory delta")
+    fail("src/main.c changed outside the approved inventory + nxinput-chord deltas")
 
 baseline_adapter = git("show", V111 + ":magicrampage/adapter/adapter-contract.json").stdout
 expected_adapter = replace_once(
@@ -200,6 +312,13 @@ for relative in RECIPE_PATHS:
 if current_recipes[0] != current_recipes[1]:
     fail("source and vendored recipes differ")
 
+# The vendored nxinput 0.4.0 chord header is compiled into the loader; pin it.
+chord_header = ROOT / NXINPUT_CHORD_HEADER
+if chord_header.is_symlink() or not chord_header.is_file():
+    fail(f"missing or unsafe vendored header: {NXINPUT_CHORD_HEADER}")
+if hashlib.sha256(chord_header.read_bytes()).hexdigest() != EXPECTED_NXINPUT_CHORD_SHA256:
+    fail("vendored nxinput chord header SHA-256 drifted: " + NXINPUT_CHORD_HEADER)
+
 tracked_binary = ROOT / "magicrampage/bin/aarch64/magicrampage-nextos"
 build_binary = ROOT / "build/magicrampage-nextos"
 for path in (tracked_binary, build_binary):
@@ -211,6 +330,7 @@ for path in (tracked_binary, build_binary):
 
 print(
     "magicrampage runtime preservation gate: PASS "
-    "rc2=v1.0.0-rc2 baseline=v1.1.1 inventory_delta=L1-to-I-only "
-    "recipe_delta=version+max_bundle_apks-only"
+    "rc2=v1.0.0-rc2 baseline=v1.1.1 "
+    "src_delta=inventory(main.c)+Mix_PlayChannelTimed(audio_backend.c)+nxinput-chord(main.c) "
+    "build_delta=nxinput-include-dirs recipe_delta=version+max_bundle_apks-only"
 )

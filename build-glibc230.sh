@@ -41,7 +41,8 @@ docker run --rm \
   "$IMAGE" bash -eu -o pipefail -c '
 aarch64-linux-gnu-gcc \
   -D_GNU_SOURCE -D_REENTRANT \
-  -I /src/src -idirafter /sdk/usr/include \
+  -I /src/src -I /src/vendor/nxinput/include \
+  -idirafter /sdk/usr/include -idirafter /sdk/usr/include/SDL2 \
   -O2 -fPIE -fno-omit-frame-pointer -rdynamic \
   -Wl,--build-id=sha1 -Wl,--allow-shlib-undefined -pie \
   -o /out/magicrampage-nextos \

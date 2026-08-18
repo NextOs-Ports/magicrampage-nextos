@@ -21,6 +21,12 @@
 #include "so_util.h"
 #include "util.h"
 
+/* Exit-chord canonico (nxinput 0.4.0): SELECT+START por ESTADO vivo do SDL,
+ * com hold de 3 polls e log de controle. Substitui o latch por-evento que
+ * grudava BACK e fechava o jogo com START sozinho no Knulli/RG34XX-SP. */
+#define NXINPUT_EVDEV_CHORD_IMPLEMENTATION
+#include "nxinput_evdev_chord.h"
+
 #define CXX_SO "libc++_shared.so"
 #define CRYPTO_SO "libcrypto.so"
 #define FMOD_SO "libfmod.so"
@@ -1092,8 +1098,6 @@ int main(int argc, char **argv) {
   GS_resume(jni_env(), jni_class());
 
   int running = 1;
-  int back_down = 0;
-  int start_down = 0;
   unsigned frame = 0;
   while (running) {
     SDL_Event e;
@@ -1102,22 +1106,17 @@ int main(int argc, char **argv) {
         running = 0;
       else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE)
         running = 0;
-      else if (e.type == SDL_CONTROLLERBUTTONDOWN ||
-               e.type == SDL_CONTROLLERBUTTONUP) {
-        int down = e.type == SDL_CONTROLLERBUTTONDOWN;
-        if (e.cbutton.button == SDL_CONTROLLER_BUTTON_BACK)
-          back_down = down;
-        if (e.cbutton.button == SDL_CONTROLLER_BUTTON_START)
-          start_down = down;
-        if (back_down && start_down)
-          running = 0;
-      } else if (e.type == SDL_WINDOWEVENT &&
+      else if (e.type == SDL_WINDOWEVENT &&
                  e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
         width = e.window.data1;
         height = e.window.data2;
         GS_resize(jni_env(), jni_class(), width, height);
       }
     }
+
+    /* SELECT+START por ESTADO vivo (nxinput 0.4.0): imune a release perdido. */
+    if (nx_exit_chord_update(&g_controller, g_controller ? 1 : 0))
+      running = 0;
 
     void *ret = GS_mainLoop(jni_env(), jni_class(), NULL);
     (void)ret;
