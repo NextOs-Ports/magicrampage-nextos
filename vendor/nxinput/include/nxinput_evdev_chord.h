@@ -290,8 +290,23 @@ void nx_evdev_chord_open(void) {
                             "SELECT+START depends on the SDL mapping only\n");
 }
 
+/* 0.4.1: o pad SDL so pode assumir o chord se o mapping REALMENTE liga BACK e
+ * START (bind != NONE nos dois). Caso de campo: um frontend exporta um mapping
+ * com crc mas SEM back/start -> o caminho SDL nunca dispararia e o fallback
+ * evdev ficava mutado = SELECT+START morto. Com bind incompleto o fallback
+ * evdev PERMANECE ativo (a decisao continua por CAPACIDADE, nunca por nome). */
+static int nx_evc_sdl_can_chord(struct _SDL_GameController *c) {
+  SDL_GameControllerButtonBind bb, sb;
+  if (!c)
+    return 0;
+  bb = SDL_GameControllerGetBindForButton(c, SDL_CONTROLLER_BUTTON_BACK);
+  sb = SDL_GameControllerGetBindForButton(c, SDL_CONTROLLER_BUTTON_START);
+  return bb.bindType != SDL_CONTROLLER_BINDTYPE_NONE &&
+         sb.bindType != SDL_CONTROLLER_BINDTYPE_NONE;
+}
+
 void nx_evdev_chord_bind_sdl(struct _SDL_GameController *controller) {
-  int bound = controller != NULL;
+  int bound = controller != NULL && nx_evc_sdl_can_chord(controller);
   if (g_nx_evc_count < 0)
     nx_evdev_chord_open();
   if (bound != g_nx_evc_sdl_bound) {
@@ -303,13 +318,13 @@ void nx_evdev_chord_bind_sdl(struct _SDL_GameController *controller) {
       g_nx_evc_pads[i].down_start = 0;
     }
     NXINPUT_EVDEV_CHORD_LOG(
-        bound ? "EXIT chord: SDL pad bound -> SELECT+START = SDL BACK+START "
-                "(state) + raw joystick indices; evdev fallback muted\n"
-              : "EXIT chord: no SDL pad -> evdev raw fallback active (%d "
-                "device(s))\n",
+        bound ? "EXIT chord: SDL pad binds BACK+START -> SDL state assumes; "
+                "evdev fallback muted\n"
+              : "EXIT chord: SDL pad absent or mapping lacks BACK/START -> "
+                "evdev raw fallback ACTIVE (%d device(s))\n",
         g_nx_evc_count);
   }
-  if (bound)
+  if (controller)
     nx_exit_chord_log_controller(controller, 0);
 }
 

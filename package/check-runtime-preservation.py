@@ -13,14 +13,15 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 RC2 = "v1.0.0-rc2"
 V111 = "v1.1.1"
 EXPECTED_BINARY_SHA256 = (
-    "618dbd047acd0e57127ae3233622dda2938b770cc82c799eedd21e97c0e9cc88"
+    "109a36c95c70ab9412e7c7df33f386db4d14e488da72c690268c33eec718746f"
 )
 IMMUTABLE_PATHS = ("Dockerfile.glibc230",)
-# v1.1.4 vendors the nxinput 0.4.0 exit-chord header (compiled into the loader).
+# v1.1.6 vendors the nxinput 0.4.1 exit-chord header (compiled into the loader):
+# o pad SDL so muta o fallback evdev quando o mapping liga BACK+START de verdade.
 # Pin its bytes so the runtime code shipped stays exactly the audited 0.4.0.
 NXINPUT_CHORD_HEADER = "vendor/nxinput/include/nxinput_evdev_chord.h"
 EXPECTED_NXINPUT_CHORD_SHA256 = (
-    "813e3e7a43c4a065bad77171e8d290ac451e3098ae0cdf9dc352b72702754625"
+    "0501989459a5654965edf92b5c7ad1e01427d979a4b76b60fca311d2bd13865a"
 )
 RECIPE_PATHS = ("project/extractor.json", "magicrampage/extractor.json")
 EXPECTED_RECIPE_VERSION = "7.8.2-7.8.7-aarch64-3"

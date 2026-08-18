@@ -25,7 +25,7 @@ NXBOOTSTRAP_ROOT="$FRAMEWORK_ROOT/nxbootstrap"
 NXSPLASH_ROOT="$FRAMEWORK_ROOT/nxsplash"
 NXEXTRACT_ROOT="$FRAMEWORK_ROOT/../suportando_outros_devices/extrator-universal"
 MANIFEST="$REPOSITORY_ROOT/nxrelease.json"
-DESTINATION=${1:-"$REPOSITORY_ROOT/dist/v1.1.5"}
+DESTINATION=${1:-"$REPOSITORY_ROOT/dist/v1.1.6"}
 ARCHIVE_NAME=magicrampage.zip
 
 fail() {
