@@ -11,9 +11,9 @@
     ],
     "launcher_contract": {
       "generator": "nxbootstrap",
-      "version": "0.6.14",
+      "version": "0.6.17",
       "config_path": "magicrampage/nxport.json",
-      "config_sha256": "ad15baa2f8f7bba965a99b4b1a99ef5a7c33a26b35b5bf30109280bb7045658a"
+      "config_sha256": "b396486d865012521ec7fcbb8f00b52d9ba33d72dfadc959f2f13b979ceb6407"
     },
     "port_dir": "magicrampage",
     "license": {
@@ -29,9 +29,9 @@
   },
   "nxextract": {
     "path": "magicrampage/nxextract/nxextract.py",
-    "version": "1.2.9",
+    "version": "1.2.10",
     "minimum_version": "1.2.9",
-    "sha256": "7c9d44df71cbe06ff24266c3fa73f08d14ad72973c532d8ef0808af7756a4901",
+    "sha256": "b1b46ecdf1336b1412d7d3a3d291220aca4834a47730a5545afb382dae6036b5",
     "runner_path": "magicrampage/nxextract/run-extractor.sh",
     "runner_sha256": "c931427c7226d22d7e30eee8549b50f0621dca1c9d0336634aca08631f454d7a",
     "runtime_env_path": "magicrampage/nxextract/nxextract-runtime-env.sh",
@@ -58,7 +58,8 @@
       "namespace": "linux",
       "architecture": "aarch64",
       "soname": "libzip.so.5",
-      "provider": "portmaster"
+      "provider": "package",
+      "path": "magicrampage/lib/aarch64/libzip.so.5"
     },
     {
       "namespace": "linux",
@@ -88,9 +89,13 @@
   "portmaster_metadata": {
     "port_json": {
       "path": "magicrampage/port.json",
-      "sha256": "d1e085c96ec8b697595a5c1284a421ae9e83096208d1388c256f61da1c6b20b7"
+      "sha256": "e93ca815b1c73077660a572f2af53d2c457363c6765d5b271c2fb92892ecce3b"
     },
-    "images": []
+    "images": [],
+    "gameinfo_xml": {
+      "path": "magicrampage/gameinfo.xml",
+      "sha256": "f40b04e8d1c48da5417995f7a3207545dbda9b291b88a83cd87a7999a7f7601e"
+    }
   },
   "files": [
     {
@@ -98,14 +103,14 @@
       "target": "Magic Rampage.sh",
       "kind": "launcher",
       "mode": "0755",
-      "sha256": "aa9b72e47a10109d560ae4b98c26eba71f8e343514816186874b0fa66b24c8b7"
+      "sha256": "b47245ef4e3d838d3e5aee3e123db8da7ed336d7af3fdffd63ae720e2c2f7e1a"
     },
     {
       "source": "magicrampage/nxport.json",
       "target": "magicrampage/nxport.json",
       "kind": "nxbootstrap-config",
       "mode": "0644",
-      "sha256": "ad15baa2f8f7bba965a99b4b1a99ef5a7c33a26b35b5bf30109280bb7045658a"
+      "sha256": "b396486d865012521ec7fcbb8f00b52d9ba33d72dfadc959f2f13b979ceb6407"
     },
     {
       "source": "magicrampage/nxsplash-nextos",
@@ -154,7 +159,7 @@
       "target": "magicrampage/port-env.sh",
       "kind": "script",
       "mode": "0644",
-      "sha256": "7442a7d635e7d453d0ae9da7a4234b3562905d1b02257ed962b256dea379b95d"
+      "sha256": "7bd19083aeadbd5e61a42477bf29db51bb085fd20a9a41d09da8b79fe86f2daa"
     },
     {
       "source": "magicrampage/extractor.json",
@@ -168,7 +173,7 @@
       "target": "magicrampage/nxextract/nxextract.py",
       "kind": "nxextract",
       "mode": "0644",
-      "sha256": "7c9d44df71cbe06ff24266c3fa73f08d14ad72973c532d8ef0808af7756a4901"
+      "sha256": "b1b46ecdf1336b1412d7d3a3d291220aca4834a47730a5545afb382dae6036b5"
     },
     {
       "source": "magicrampage/nxextract/run-extractor.sh",
@@ -204,7 +209,7 @@
       "target": "magicrampage/port.json",
       "kind": "portmaster-metadata",
       "mode": "0644",
-      "sha256": "d1e085c96ec8b697595a5c1284a421ae9e83096208d1388c256f61da1c6b20b7"
+      "sha256": "e93ca815b1c73077660a572f2af53d2c457363c6765d5b271c2fb92892ecce3b"
     },
     {
       "source": "magicrampage/README.md",
@@ -253,7 +258,7 @@
       "target": "magicrampage/GENERATION.json",
       "kind": "payload",
       "mode": "0644",
-      "sha256": "5cf5f5aca3d4db81155fd258a0035a525c05956e569671f5eaf8bbe3b8ecbda1"
+      "sha256": "d1e4827d003b49fb9eba94b307c0f6b2f17514e02454fa3a46928f42cdb24c36"
     },
     {
       "source": "magicrampage/adapter/adapter-contract.json",
@@ -282,6 +287,27 @@
       "kind": "license-notice",
       "mode": "0644",
       "sha256": "2a0c79bd1d79caed6f7a56fb37a3b4a07aa1dacba7d764022dbf0679e9469a08"
+    },
+    {
+      "source": "magicrampage/lib/aarch64/libzip.so.5",
+      "target": "magicrampage/lib/aarch64/libzip.so.5",
+      "kind": "third-party-linux",
+      "mode": "0644",
+      "architecture": "aarch64",
+      "build_profile": "universal-low-glibc",
+      "provenance": "bundled offline: libzip 1.5.1 built from source in the pinned Debian Buster builder (GLIBC 2.17), zlib 1.2.13 static-linked, BZip2/LZMA/crypto disabled; NEEDs only libc; BSD-3-Clause",
+      "sha256": "d9b1eb1e9bc295e114424fdbf11d5f2789946518e75c2966915d0d5425bdb59d",
+      "needed": [
+        "libc.so.6"
+      ],
+      "soname": "libzip.so.5"
+    },
+    {
+      "source": "magicrampage/gameinfo.xml",
+      "target": "magicrampage/gameinfo.xml",
+      "kind": "portmaster-metadata",
+      "mode": "0644",
+      "sha256": "f40b04e8d1c48da5417995f7a3207545dbda9b291b88a83cd87a7999a7f7601e"
     }
   ],
   "exceptions": []

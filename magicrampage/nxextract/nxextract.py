@@ -33,9 +33,13 @@ import zipfile
 from pathlib import Path, PurePosixPath
 
 
-NXEXTRACT_VERSION = "1.2.9"
+NXEXTRACT_VERSION = "1.2.10"
 FORMAT_VERSION = 1
 TRANSACTION_FORMAT_VERSION = 2
+TERMINAL_RESULT_SCHEMA = "org.nextos.nxextract.terminal-result"
+TERMINAL_RESULT_SCHEMA_VERSION = 1
+DEFAULT_TERMINAL_RESULT = "nxextract-result.json"
+DEFAULT_DETAIL_LOG = "nxextract-detail.log"
 CHUNK_SIZE = 1024 * 1024
 DEFAULT_SAFETY_BYTES = 128 * 1024 * 1024
 DEFAULT_UI_RUNTIME_TMP = "/tmp"
@@ -59,6 +63,17 @@ PHASES = (
     "VALIDATING DATA",
     "INSTALLING DATA",
     "READY",
+)
+PHASE_IDS = (
+    "preparing",
+    "scanning",
+    "validating-packages",
+    "selecting",
+    "extracting",
+    "processing",
+    "validating-data",
+    "installing",
+    "ready",
 )
 ELF_MACHINES = {
     "arm": 40,
@@ -90,6 +105,29 @@ class PlanError(NXError):
 
 class ValidationError(NXError):
     pass
+
+
+def stable_error_code(error):
+    """Map failures to a finite support code without parsing prose."""
+    if isinstance(error, RecipeError):
+        return "NXE1001"
+    if isinstance(error, zipfile.BadZipFile):
+        return "NXE2002"
+    if isinstance(error, SourceError):
+        return "NXE2001"
+    if isinstance(error, PlanError):
+        return "NXE3001"
+    if isinstance(error, ValidationError):
+        return "NXE4001"
+    if isinstance(error, NotImplementedError):
+        return "NXE5002"
+    if isinstance(error, RuntimeError):
+        return "NXE5001"
+    if isinstance(error, OSError):
+        return "NXE6001"
+    if isinstance(error, NXError):
+        return "NXE7001"
+    return "NXE9001"
 
 
 def _json_no_duplicates(pairs):
@@ -375,6 +413,8 @@ def recipe_for_game(path, game_dir):
     protected = {
         portable_path_key(recipe.marker): "installation marker",
         portable_path_key(recipe.data.get("log", "nxextract.log")): "log",
+        portable_path_key(recipe.detail_log): "detail log",
+        portable_path_key(recipe.terminal_result): "terminal result",
     }
     if portable_path_key(relative) in protected:
         raise RecipeError(
@@ -393,6 +433,19 @@ def private_workspace_file(workspace, value, label):
     if os.path.lexists(path) and not is_private_regular_file(path):
         raise NXError("%s must be a private regular file" % label)
     return path
+
+
+def private_game_file(game_dir, value, label):
+    """Resolve one persistent extractor output without leaving the port tree."""
+    candidate = os.path.abspath(os.fspath(value))
+    relative = os.path.relpath(candidate, game_dir).replace(os.sep, "/")
+    validate_relative_path(relative, label)
+    path = safe_join(game_dir, relative, label)
+    ensure_no_symlink_parents(game_dir, relative)
+    ensure_real_parent_directories(game_dir, relative)
+    if os.path.lexists(path) and not is_private_regular_file(path):
+        raise NXError("%s must be a private regular file" % label)
+    return path, relative
 
 
 def ensure_no_symlink_parents(root, relative):
@@ -718,7 +771,13 @@ class Recipe:
         ):
             raise RecipeError("recipe id must be 1-64 safe characters")
         version = data.get("version")
-        if not isinstance(version, (str, int)) or not str(version):
+        if (
+            not isinstance(version, (str, int))
+            or isinstance(version, bool)
+            or not str(version)
+            or len(str(version)) > 128
+            or any(ord(character) < 32 for character in str(version))
+        ):
             raise RecipeError("recipe version is required")
         title = data.get("title", identifier)
         if not isinstance(title, str) or not title.strip():
@@ -738,7 +797,30 @@ class Recipe:
         ):
             raise RecipeError("space.safety_bytes must be a non-negative integer")
         log = data.get("log", "nxextract.log")
+        detail_log = data.get("detail_log", DEFAULT_DETAIL_LOG)
+        terminal_result = data.get("result", DEFAULT_TERMINAL_RESULT)
+        if terminal_result != DEFAULT_TERMINAL_RESULT:
+            raise RecipeError(
+                "result path is fixed at %s for launcher interoperability"
+                % DEFAULT_TERMINAL_RESULT
+            )
         validate_relative_path(log, "log path")
+        validate_relative_path(detail_log, "detail log path")
+        validate_relative_path(terminal_result, "terminal result path")
+        if len(log) > 512 or len(detail_log) > 512:
+            raise RecipeError("log paths must not exceed 512 characters")
+        protected_outputs = (
+            (log, "log"),
+            (detail_log, "detail log"),
+            (terminal_result, "terminal result"),
+        )
+        for index, (left, left_label) in enumerate(protected_outputs):
+            for right, right_label in protected_outputs[index + 1 :]:
+                if paths_overlap(left, right):
+                    raise RecipeError(
+                        "%s and %s paths must not overlap"
+                        % (left_label, right_label)
+                    )
         for delay_name in ("ui_success_seconds", "ui_error_seconds"):
             delay = data.get(delay_name, 1 if delay_name == "ui_success_seconds" else 5)
             if (
@@ -749,8 +831,8 @@ class Recipe:
             ):
                 raise RecipeError("%s must be between 0 and 300" % delay_name)
         rules = data.get("extract")
-        if not isinstance(rules, list) or not rules:
-            raise RecipeError("recipe extract must be a non-empty list")
+        if not isinstance(rules, list) or not rules or len(rules) > 256:
+            raise RecipeError("recipe extract must contain 1-256 rules")
         seen = set()
         for index, rule in enumerate(rules):
             self._validate_rule(rule, index, seen)
@@ -792,14 +874,28 @@ class Recipe:
                 (".nxextract", "private workspace"),
                 (marker, "installation marker"),
                 (log, "log"),
+                (detail_log, "detail log"),
+                (terminal_result, "terminal result"),
             ):
                 if paths_overlap(plain, protected):
                     raise RecipeError(
                         "commit path %s overlaps the %s" % (item, label)
                     )
-        for protected, label in ((marker, "marker"), (log, "log")):
+        for protected, label in (
+            (marker, "marker"),
+            (log, "log"),
+            (detail_log, "detail log"),
+            (terminal_result, "terminal result"),
+        ):
             if paths_overlap(protected, ".nxextract"):
                 raise RecipeError("%s path overlaps the private workspace" % label)
+        for protected, label in (
+            (log, "log"),
+            (detail_log, "detail log"),
+            (terminal_result, "terminal result"),
+        ):
+            if paths_overlap(marker, protected):
+                raise RecipeError("marker and %s paths must not overlap" % label)
         hooks = data.get("hooks", [])
         if not isinstance(hooks, list):
             raise RecipeError("hooks must be a list")
@@ -1200,6 +1296,14 @@ class Recipe:
         return self.data.get("marker", ".nxextract-%s.json" % self.identifier)
 
     @property
+    def detail_log(self):
+        return self.data.get("detail_log", DEFAULT_DETAIL_LOG)
+
+    @property
+    def terminal_result(self):
+        return DEFAULT_TERMINAL_RESULT
+
+    @property
     def input_config(self):
         value = self.data.get("input", {})
         if not isinstance(value, dict):
@@ -1327,25 +1431,274 @@ class Progress:
 
 
 class Logger:
-    def __init__(self, path=None, verbose=True):
+    """Compact milestone log plus a lossless opt-in detail stream."""
+
+    def __init__(
+        self,
+        path=None,
+        detail_path=None,
+        detail_label=None,
+        verbose=True,
+        verbose_detail=False,
+    ):
         self.path = path
+        self.detail_path = detail_path
+        self.detail_label = detail_label or (
+            os.path.basename(detail_path) if detail_path else None
+        )
         self.verbose = verbose
+        self.verbose_detail = verbose_detail
         self.stream = None
+        self.detail_stream = None
+        self.repeated = {}
+        self.closed = False
         if path:
             os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
             self.stream = open_private_text_append(path)
+        if detail_path:
+            try:
+                os.makedirs(os.path.dirname(detail_path) or ".", exist_ok=True)
+                self.detail_stream = open_private_text_append(detail_path)
+            except BaseException:
+                if self.stream:
+                    self.stream.close()
+                    self.stream = None
+                raise
+
+    @staticmethod
+    def _line(message):
+        return "[%s] %s" % (time.strftime("%Y-%m-%d %H:%M:%S"), message)
+
+    def _emit(self, message, compact, console):
+        line = self._line(message)
+        if console and self.verbose:
+            print(line, flush=True)
+        if compact and self.stream:
+            self.stream.write(line + "\n")
+        if self.detail_stream:
+            self.detail_stream.write(line + "\n")
 
     def log(self, message):
-        line = "[%s] %s" % (time.strftime("%Y-%m-%d %H:%M:%S"), message)
-        if self.verbose:
-            print(line, flush=True)
-        if self.stream:
-            self.stream.write(line + "\n")
+        self._emit(message, compact=True, console=True)
+
+    def detail(self, message):
+        self._emit(
+            message,
+            compact=self.verbose_detail,
+            console=self.verbose_detail,
+        )
+
+    def miss(self, category, message):
+        """Keep the first miss visible and summarize repeats at the boundary."""
+        record = self.repeated.setdefault(
+            str(category), {"count": 0}
+        )
+        record["count"] += 1
+        if record["count"] == 1:
+            self.log(message)
+        else:
+            self.detail(message)
+
+    def flush_repeated(self):
+        for category in sorted(self.repeated):
+            record = self.repeated[category]
+            suppressed = record["count"] - 1
+            if suppressed > 0:
+                suffix = (
+                    "; see %s" % self.detail_label
+                    if self.detail_label
+                    else ""
+                )
+                self.log(
+                    "suppressed %d repeated %s miss(es)%s"
+                    % (suppressed, category, suffix)
+                )
+        self.repeated.clear()
+
+    def terminal(self, message):
+        # Terminal cause is never compacted, even when its class was seen before.
+        self.flush_repeated()
+        self.log(message)
 
     def close(self):
+        if self.closed:
+            return
+        self.flush_repeated()
         if self.stream:
             self.stream.close()
             self.stream = None
+        if self.detail_stream:
+            self.detail_stream.close()
+            self.detail_stream = None
+        self.closed = True
+
+
+def sanitize_terminal_message(message):
+    """Preserve the cause while removing URLs, host paths and package filenames."""
+    value = " ".join(str(message).replace("\r", " ").replace("\n", " ").split())
+    value = re.sub(r"(?i)\b(?:https?|ftp)://\S+", "<redacted-source>", value)
+    value = re.sub(
+        r"(?i)(?<![A-Za-z0-9_.-])[^\s,;:()]*\.(?:apk|apkm|apks|xapk|obb|zip)\b",
+        "<container>",
+        value,
+    )
+    value = re.sub(r"(?<![A-Za-z0-9_.-])/(?:[^\s,;:()]+/)*[^\s,;:()]*", "<path>", value)
+    return value[:512] or "unspecified failure"
+
+
+def _result_items(plan=None, marker=None):
+    if plan is not None:
+        return [
+            {
+                "rule": item.rule_id,
+                "size": int(item.size),
+            }
+            for item in plan.items
+        ]
+    if marker is not None:
+        return [
+            {"rule": item["rule"], "size": int(item["size"])}
+            for item in marker.get("items", [])
+            if isinstance(item, dict)
+            and isinstance(item.get("rule"), str)
+            and isinstance(item.get("size"), int)
+            and not isinstance(item.get("size"), bool)
+            and item.get("size") >= 0
+        ]
+    return []
+
+
+def _critical_payload_summary(recipe, items):
+    totals = {}
+    for item in items:
+        record = totals.setdefault(item["rule"], {"items": 0, "bytes": 0})
+        record["items"] += 1
+        record["bytes"] += item["size"]
+    result = []
+    for rule in recipe.data["extract"]:
+        if not rule.get("required", True):
+            continue
+        totals_for_rule = totals.get(rule["id"], {"items": 0, "bytes": 0})
+        result.append(
+            {
+                "id": rule["id"],
+                "items": totals_for_rule["items"],
+                "bytes": totals_for_rule["bytes"],
+            }
+        )
+    return result
+
+
+def _terminal_selection(recipe, plan=None, marker=None):
+    if plan is not None:
+        source_kind = plan.group.source_kind
+        package_id = plan.group.package
+        abi = plan.abi
+        fingerprint = plan.fingerprint
+    elif marker is not None:
+        source_kind = marker.get("source_kind")
+        package_id = marker.get("package_id")
+        abi = marker.get("abi")
+        fingerprint = marker.get("plan_fingerprint")
+    else:
+        source_kind = None
+        package_id = None
+        abi = None
+        fingerprint = None
+    if source_kind not in ("apk-set", "bundle", "companion", "existing"):
+        source_kind = None
+    if (
+        not isinstance(package_id, str)
+        or len(package_id) > 255
+        or re.fullmatch(r"[A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+", package_id) is None
+    ):
+        package_id = None
+    if not isinstance(abi, str) or re.fullmatch(r"[A-Za-z0-9._-]{1,64}", abi) is None:
+        abi = None
+    identity = None
+    if isinstance(fingerprint, str) and re.fullmatch(r"[0-9a-f]{64}", fingerprint):
+        identity = sha256_bytes(
+            canonical_json(
+                {
+                    "abi": abi,
+                    "fingerprint": fingerprint,
+                    "kind": source_kind,
+                    "package_id": package_id,
+                    "recipe_digest": recipe.digest,
+                }
+            )
+        )
+    return {
+        "abi": abi,
+        "package_id": package_id,
+        "container": {
+            "kind": source_kind,
+            "identity": identity,
+        },
+    }
+
+
+def terminal_result_payload(
+    recipe,
+    progress,
+    outcome,
+    code,
+    summary_log,
+    detail_log,
+    started_monotonic,
+    plan=None,
+    marker=None,
+    validated=False,
+    error=None,
+):
+    phase = max(0, min(8, int(progress.phase)))
+    items = _result_items(plan=plan, marker=marker) if validated else []
+    selection = _terminal_selection(recipe, plan=plan, marker=marker)
+    payload = {
+        "schema": TERMINAL_RESULT_SCHEMA,
+        "schema_version": TERMINAL_RESULT_SCHEMA_VERSION,
+        "nxextract_version": NXEXTRACT_VERSION,
+        "outcome": outcome,
+        "code": code,
+        "final_phase": {
+            "index": phase,
+            "id": PHASE_IDS[phase],
+            "label": PHASES[phase],
+        },
+        "recipe": {
+            "id": recipe.identifier,
+            "version": recipe.version,
+            "digest": recipe.digest,
+        },
+        "package_id": selection["package_id"],
+        "abi": selection["abi"],
+        "container": selection["container"],
+        "validated": {
+            "items": len(items),
+            "bytes": sum(item["size"] for item in items),
+            "critical_payloads": _critical_payload_summary(recipe, items),
+        },
+        "logs": {
+            "summary": summary_log,
+            "detail": detail_log,
+        },
+        "duration_ms": max(
+            0, int((time.monotonic() - started_monotonic) * 1000)
+        ),
+        "completed_unix": int(time.time()),
+        "error": None,
+    }
+    if error is not None:
+        payload["error"] = {
+            "class": type(error).__name__,
+            "message": sanitize_terminal_message(error),
+        }
+    return payload
+
+
+def publish_terminal_result(path, payload):
+    """Publish a complete result; a partial JSON file is never observable."""
+    atomic_write_json(path, payload, required_directory_sync=True)
 
 
 def _decode_length8(data, offset):
@@ -2521,7 +2874,9 @@ def resolve_plan(recipe, groups, abi_override, logger, progress):
             try:
                 plan = build_plan_for(recipe, group, abi)
             except (PlanError, ValidationError) as error:
-                failures.append("%s / %s: %s" % (group.description(), abi, error))
+                failure = "%s / %s: %s" % (group.description(), abi, error)
+                failures.append(failure)
+                logger.miss("candidate-selection", failure)
                 continue
             successes.append(plan)
     if not successes:
@@ -2918,7 +3273,7 @@ def _copy_item(item, destination, progress, base_done, total_bytes, logger):
             raise SourceError("CRC mismatch while extracting %s" % item.source_name)
         os.replace(temporary, destination)
         fsync_directory(os.path.dirname(destination))
-        logger.log(
+        logger.detail(
             "extracted %s -> %s (%s)"
             % (item.source_name, item.destination, human_bytes(item.size))
         )
@@ -3124,7 +3479,7 @@ def run_hooks(recipe, plan, game_dir, stage, workspace, progress, logger):
         try:
             for line in process.stdout:
                 line = line.rstrip("\r\n")
-                logger.log("[%s] %s" % (hook["id"], line))
+                logger.detail("[%s] %s" % (hook["id"], line))
                 match = re.match(r"^NXEXTRACT_PROGRESS\s+(\d+)\s+(\d+)(?:\s+(.*))?$", line)
                 if match:
                     done = int(match.group(1))
@@ -3522,6 +3877,8 @@ def _write_install_marker(marker_path, recipe, plan, transaction_id, game_dir):
         "recipe_version": recipe.version,
         "recipe_digest": recipe.digest,
         "abi": plan.abi,
+        "source_kind": plan.group.source_kind,
+        "package_id": plan.group.package,
         "plan_fingerprint": plan.fingerprint,
         "transaction_id": transaction_id,
         "completed": int(time.time()),
@@ -3949,6 +4306,8 @@ def marker_matches_recipe(marker, recipe):
         expected_commit = _expand_commit_paths(recipe, abi)
     except RecipeError:
         return False
+    source_kind = marker.get("source_kind")
+    package_id = marker.get("package_id")
     if (
         marker.get("format") != FORMAT_VERSION
         or marker.get("nxextract_version") != NXEXTRACT_VERSION
@@ -3967,6 +4326,16 @@ def marker_matches_recipe(marker, recipe):
         or isinstance(marker.get("payload_objects"), bool)
         or marker.get("payload_objects") < 1
         or marker.get("commit") != expected_commit
+        or source_kind not in ("apk-set", "bundle", "companion", "existing")
+        or (
+            package_id is not None
+            and (
+                not isinstance(package_id, str)
+                or not package_id
+                or len(package_id) > 255
+                or any(ord(character) < 32 for character in package_id)
+            )
+        )
     ):
         return False
     items = marker.get("items")
@@ -4012,10 +4381,13 @@ def marker_fast_valid(marker_path, recipe, game_dir, logger):
             full=False,
         )
     except (OSError, NXError) as error:
-        logger.log("existing marker rejected: %s" % error)
+        logger.miss("marker-validation", "existing marker rejected: %s" % error)
         return None
     if not marker_payload_seal_valid(marker, game_dir):
-        logger.log("existing marker rejected: payload metadata seal mismatch")
+        logger.miss(
+            "marker-validation",
+            "existing marker rejected: payload metadata seal mismatch",
+        )
         return None
     return marker
 
@@ -4026,7 +4398,8 @@ def try_adopt_existing(recipe, game_dir, marker_path, logger, progress, abi_over
         try:
             validate_recipe_outputs(game_dir, recipe, abi, full=True)
         except (OSError, NXError) as error:
-            logger.log(
+            logger.miss(
+                "existing-data",
                 "existing data not adoptable for ABI %s: %s" % (abi, error)
             )
             continue
@@ -4034,11 +4407,26 @@ def try_adopt_existing(recipe, game_dir, marker_path, logger, progress, abi_over
         for rule in recipe.data["extract"]:
             for relative in _validation_paths_for_rule(recipe, rule, abi):
                 path = safe_join(game_dir, relative, "adopted payload")
+                candidates = []
                 if is_regular_file(path):
+                    candidates.append((relative, path))
+                elif os.path.isdir(path) and not os.path.islink(path):
+                    for current, directories, files in os.walk(
+                        path, topdown=True, followlinks=False
+                    ):
+                        directories.sort(key=portable_path_key)
+                        files.sort(key=portable_path_key)
+                        for name in files:
+                            child = os.path.join(current, name)
+                            child_relative = os.path.relpath(
+                                child, game_dir
+                            ).replace(os.sep, "/")
+                            candidates.append((child_relative, child))
+                for candidate_relative, candidate_path in candidates:
                     pseudo = type("AdoptedItem", (), {})()
                     pseudo.rule_id = rule["id"]
-                    pseudo.destination = relative
-                    pseudo.size = file_size(path)
+                    pseudo.destination = candidate_relative
+                    pseudo.size = file_size(candidate_path)
                     pseudo.crc = None
                     pseudo_items.append(pseudo)
         pseudo_group = CandidateGroup("validated existing data", [], [], None, "existing")
@@ -4052,8 +4440,8 @@ def try_adopt_existing(recipe, game_dir, marker_path, logger, progress, abi_over
         )
         logger.log("adopted fully validated existing data without requiring an APK")
         progress.done("EXISTING GAME DATA VALIDATED")
-        return True
-    return False
+        return plan
+    return None
 
 
 def _prepare_stage_state(recipe, plan, workspace, logger):
@@ -4076,20 +4464,26 @@ def _prepare_stage_state(recipe, plan, workspace, logger):
 
 
 def install_command(args):
+    started_monotonic = time.monotonic()
     game_dir = resolve_real_directory(args.game_dir, "game directory")
     recipe = recipe_for_game(args.recipe, game_dir)
     workspace = prepare_workspace(game_dir, recipe.identifier)
-    log_path = safe_join(
-        game_dir, recipe.data.get("log", "nxextract.log"), "log path"
+    summary_relative = recipe.data.get("log", "nxextract.log")
+    log_path, summary_relative = private_game_file(
+        game_dir,
+        os.path.join(game_dir, summary_relative),
+        "log path",
     )
-    ensure_no_symlink_parents(
-        game_dir, recipe.data.get("log", "nxextract.log")
+    detail_path, detail_relative = private_game_file(
+        game_dir,
+        os.path.join(game_dir, recipe.detail_log),
+        "detail log path",
     )
-    ensure_real_parent_directories(
-        game_dir, recipe.data.get("log", "nxextract.log")
+    result_path, _result_relative = private_game_file(
+        game_dir,
+        os.path.join(game_dir, recipe.terminal_result),
+        "terminal result path",
     )
-    if os.path.lexists(log_path) and not is_private_regular_file(log_path):
-        raise NXError("log path must be a private regular file")
     progress_path = private_workspace_file(
         workspace,
         args.progress_file
@@ -4102,7 +4496,14 @@ def install_command(args):
     ensure_real_parent_directories(game_dir, recipe.marker)
     if os.path.lexists(marker_path) and not is_private_regular_file(marker_path):
         raise NXError("installation marker must be a private regular file")
-    logger = Logger(log_path, verbose=not args.quiet)
+    logger = Logger(
+        log_path,
+        detail_path=detail_path,
+        detail_label=detail_relative,
+        verbose=not args.quiet,
+        verbose_detail=args.verbose_log
+        or os.environ.get("NXEXTRACT_VERBOSE_LOG") == "1",
+    )
     progress = Progress(progress_path, logger)
     ui = UISession(
         args.ui,
@@ -4114,8 +4515,36 @@ def install_command(args):
         logger,
     )
     archives = []
+    selected_plan = None
+    selected_marker = None
+    validated = False
+
+    def finish(outcome, code, error=None):
+        payload = terminal_result_payload(
+            recipe,
+            progress,
+            outcome,
+            code,
+            summary_relative,
+            detail_relative,
+            started_monotonic,
+            plan=selected_plan,
+            marker=selected_marker,
+            validated=validated,
+            error=error,
+        )
+        publish_terminal_result(result_path, payload)
+
     try:
         with WorkspaceLock(workspace):
+            # Clear a prior terminal document only after owning the transaction
+            # lock. A concurrent invocation must never remove the active run's
+            # freshly published result while it waits for this workspace.
+            try:
+                os.unlink(result_path)
+                fsync_directory(os.path.dirname(result_path), required=True)
+            except FileNotFoundError:
+                pass
             logger.log(
                 "=== NXExtract %s format=%s recipe=%s version=%s ==="
                 % (
@@ -4132,12 +4561,17 @@ def install_command(args):
                     "and existing-data adoption"
                 )
             else:
-                marker = marker_fast_valid(marker_path, recipe, game_dir, logger)
-                if marker is not None:
+                selected_marker = marker_fast_valid(
+                    marker_path, recipe, game_dir, logger
+                )
+                if selected_marker is not None:
                     progress.done("GAME DATA ALREADY READY")
                     logger.log(
                         "fast validation marker accepted; no source scan needed"
                     )
+                    validated = True
+                    logger.terminal("TERMINAL SUCCESS NXE0001: validated marker")
+                    finish("success", "NXE0001")
                     return 0
             ui.start()
             progress.set_guard(ui.assert_visible)
@@ -4149,15 +4583,19 @@ def install_command(args):
                 force=True,
             )
             if not args.force_source:
-                if try_adopt_existing(
+                selected_plan = try_adopt_existing(
                     recipe,
                     game_dir,
                     marker_path,
                     logger,
                     progress,
                     args.abi,
-                ):
+                )
+                if selected_plan is not None:
                     ui.stop(delay=float(recipe.data.get("ui_success_seconds", 1)))
+                    validated = True
+                    logger.terminal("TERMINAL SUCCESS NXE0002: adopted existing data")
+                    finish("success", "NXE0002")
                     return 0
             progress.update(
                 phase=1,
@@ -4170,12 +4608,22 @@ def install_command(args):
             groups, archives = build_candidate_groups(
                 recipe, discovery, workspace, logger, progress
             )
-            plan = resolve_plan(recipe, groups, args.abi, logger, progress)
-            stage = _prepare_stage_state(recipe, plan, workspace, logger)
-            preflight_payload_space(recipe, plan, stage, logger)
-            extract_plan(recipe, plan, stage, progress, logger)
+            selected_plan = resolve_plan(
+                recipe, groups, args.abi, logger, progress
+            )
+            stage = _prepare_stage_state(
+                recipe, selected_plan, workspace, logger
+            )
+            preflight_payload_space(recipe, selected_plan, stage, logger)
+            extract_plan(recipe, selected_plan, stage, progress, logger)
             run_hooks(
-                recipe, plan, game_dir, stage, workspace, progress, logger
+                recipe,
+                selected_plan,
+                game_dir,
+                stage,
+                workspace,
+                progress,
+                logger,
             )
             progress.update(
                 phase=6,
@@ -4185,7 +4633,13 @@ def install_command(args):
                 force=True,
             )
             try:
-                validate_recipe_outputs(stage, recipe, plan.abi, plan=plan, full=True)
+                validate_recipe_outputs(
+                    stage,
+                    recipe,
+                    selected_plan.abi,
+                    plan=selected_plan,
+                    full=True,
+                )
             except ValidationError:
                 # O stage é reaproveitado entre execuções pelo resume, e cada
                 # item é aceito sozinho. Se o CONJUNTO reprova, repetir a
@@ -4201,6 +4655,7 @@ def install_command(args):
                 remove_path(stage)
                 remove_path(os.path.join(workspace, "state.json"))
                 raise
+            validated = True
             progress.update(
                 phase=6,
                 overall=890,
@@ -4210,7 +4665,7 @@ def install_command(args):
             )
             commit_stage(
                 recipe,
-                plan,
+                selected_plan,
                 game_dir,
                 workspace,
                 marker_path,
@@ -4223,13 +4678,38 @@ def install_command(args):
             progress.done()
             _best_effort_log(logger, "=== installation complete ===")
             ui.stop(delay=float(recipe.data.get("ui_success_seconds", 1)))
+            logger.terminal("TERMINAL SUCCESS NXE0000: installation complete")
+            finish("success", "NXE0000")
             return 0
     except (NXError, OSError, zipfile.BadZipFile, RuntimeError, NotImplementedError) as error:
-        logger.log("ERROR: %s" % error)
         progress.set_guard(None)
         progress.fail(str(error).upper())
         if ui.process is not None:
-            ui.stop(delay=float(recipe.data.get("ui_error_seconds", 5)))
+            try:
+                ui.stop(delay=float(recipe.data.get("ui_error_seconds", 5)))
+            except (NXError, OSError, RuntimeError) as stop_error:
+                logger.detail("setup UI cleanup also failed: %s" % stop_error)
+        code = stable_error_code(error)
+        logger.terminal("TERMINAL ERROR %s: %s" % (code, error))
+        try:
+            finish("error", code, error=error)
+        except (NXError, OSError) as result_error:
+            logger.log("ERROR: terminal result publication failed: %s" % result_error)
+        return 1
+    except Exception as error:
+        progress.set_guard(None)
+        progress.fail(str(error).upper())
+        if ui.process is not None:
+            try:
+                ui.stop(delay=float(recipe.data.get("ui_error_seconds", 5)))
+            except Exception as stop_error:
+                logger.detail("setup UI cleanup also failed: %s" % stop_error)
+        code = stable_error_code(error)
+        logger.terminal("TERMINAL ERROR %s: %s" % (code, error))
+        try:
+            finish("error", code, error=error)
+        except (NXError, OSError) as result_error:
+            logger.log("ERROR: terminal result publication failed: %s" % result_error)
         return 1
     finally:
         for archive in archives:
@@ -4429,6 +4909,14 @@ def build_parser():
         help="fail before extraction unless the setup UI confirms a visible renderer",
     )
     install.add_argument("--progress-file", help="override progress protocol path")
+    install.add_argument(
+        "--verbose-log",
+        action="store_true",
+        help=(
+            "copy per-file and hook-output detail into the compact log "
+            "(also enabled by NXEXTRACT_VERBOSE_LOG=1)"
+        ),
+    )
     install.add_argument(
         "--force-source",
         action="store_true",

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<gameList>
+  <game>
+    <path>./Magic Rampage.sh</path>
+    <name>Magic Rampage</name>
+    <desc>Magic Rampage: fast platform action-RPG with dungeons, gear and boss fights, run natively from the owner's copy.</desc>
+    <developer>Asantee Games</developer>
+    <publisher>Asantee Games</publisher>
+    <genre>Platform, Action RPG</genre>
+  </game>
+</gameList>

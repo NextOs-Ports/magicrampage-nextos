@@ -4,7 +4,8 @@
       "aarch64"
     ],
     "min_glibc": "2.17",
-    "title": "Magic Rampage"
+    "title": "Magic Rampage",
+    "runtime": []
   },
   "items": [
     "Magic Rampage.sh",

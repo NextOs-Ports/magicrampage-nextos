@@ -18,8 +18,8 @@ FRAMEWORK_ROOT=${NEXTOS_FRAMEWORK_ROOT:-}
 FRAMEWORK_ROOT=$(CDPATH= cd -- "$FRAMEWORK_ROOT" && pwd -P)
 
 NXRELEASE="$FRAMEWORK_ROOT/nxrelease/nxrelease.py"
-NXRELEASE_VERSION=0.2.12
-NXRELEASE_SHA256=276cc09d16b74c1ae22202ed8f663ce1f07e81c734932a32152e3f1fe1825621
+NXRELEASE_VERSION=0.2.17
+NXRELEASE_SHA256=18a554faa301d7205a35b0bc631fb8e187e4e24ecdc9ae8f63f4ff265ac8ed84
 NXGENERATOR_ROOT="$FRAMEWORK_ROOT/nxgenerator"
 NXBOOTSTRAP_ROOT="$FRAMEWORK_ROOT/nxbootstrap"
 NXSPLASH_ROOT="$FRAMEWORK_ROOT/nxsplash"
@@ -45,21 +45,21 @@ require_pinned_file() {
 require_pinned_file "$NXRELEASE" "$NXRELEASE_SHA256" 'NXRelease'
 [[ $(python3 -B "$NXRELEASE" --version) == "nxrelease $NXRELEASE_VERSION" ]] ||
   fail 'NXRelease version drifted'
-[[ $(<"$NXGENERATOR_ROOT/VERSION") == 0.2.8 ]] ||
+[[ $(<"$NXGENERATOR_ROOT/VERSION") == 0.2.10 ]] ||
   fail 'NXGenerator version drifted'
 require_pinned_file \
   "$NXGENERATOR_ROOT/nxgenerator.py" \
-  25b4de66ee059bf21caf162a1b0e565865f7cc38efc88b11d016d6d4b5807f27 \
+  8dabfa8b0e33d3c295b8813ca92c3098fce10248570e0e6e5c6f66077a3aadf3 \
   'NXGenerator'
-[[ $(<"$NXBOOTSTRAP_ROOT/VERSION") == 0.6.14 ]] ||
+[[ $(<"$NXBOOTSTRAP_ROOT/VERSION") == 0.6.17 ]] ||
   fail 'NXBootstrap version drifted'
 require_pinned_file \
   "$NXBOOTSTRAP_ROOT/tools/generate-port.py" \
-  7328364845f1044baa0275344f959d5c98c71080e749343e8b7963163e84268c \
+  8c75e4f2fd3d586768a36a6b042d9937d1a4a6ffd8657cf51d1d43e0605431fd \
   'NXBootstrap generator'
 require_pinned_file \
   "$NXBOOTSTRAP_ROOT/templates/launcher.sh.in" \
-  a3be9b12d048d3111487e9fa0295f3a7e13671258ea92c8db9b0c17ce01035f2 \
+  bb16aeedb6fbdbf6e355022b8156cf7036d52ecfe9ff7f7a5ef8f584d6802646 \
   'NXBootstrap launcher template'
 [[ $(<"$NXSPLASH_ROOT/VERSION") == 0.1.2 ]] || fail 'NXSplash version drifted'
 require_pinned_file \
@@ -74,10 +74,10 @@ require_pinned_file \
   "$REPOSITORY_ROOT/magicrampage/nxsplash-nextos" \
   d85d896a906a778c9af250e5617d45d085a98b18552cb0254addbbc626036c97 \
   'vendored NXSplash AArch64 artifact'
-[[ $(<"$NXEXTRACT_ROOT/VERSION") == 1.2.9 ]] || fail 'NXExtract version drifted'
+[[ $(<"$NXEXTRACT_ROOT/VERSION") == 1.2.10 ]] || fail 'NXExtract version drifted'
 require_pinned_file \
   "$NXEXTRACT_ROOT/nxextract.py" \
-  7c9d44df71cbe06ff24266c3fa73f08d14ad72973c532d8ef0808af7756a4901 \
+  b1b46ecdf1336b1412d7d3a3d291220aca4834a47730a5545afb382dae6036b5 \
   'NXExtract engine'
 require_pinned_file \
   "$NXEXTRACT_ROOT/run-extractor.sh" \
@@ -93,7 +93,7 @@ require_pinned_file \
   'NXExtract UI AArch64 artifact'
 require_pinned_file \
   "$REPOSITORY_ROOT/magicrampage/nxextract/nxextract.py" \
-  7c9d44df71cbe06ff24266c3fa73f08d14ad72973c532d8ef0808af7756a4901 \
+  b1b46ecdf1336b1412d7d3a3d291220aca4834a47730a5545afb382dae6036b5 \
   'vendored NXExtract engine'
 require_pinned_file \
   "$REPOSITORY_ROOT/magicrampage/nxextract/run-extractor.sh" \

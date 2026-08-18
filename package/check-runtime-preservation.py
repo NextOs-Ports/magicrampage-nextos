@@ -18,8 +18,6 @@ EXPECTED_BINARY_SHA256 = (
 IMMUTABLE_PATHS = (
     "Dockerfile.glibc230",
     "build-glibc230.sh",
-    "magicrampage/port-env.sh",
-    "magicrampage/port.json",
 )
 RECIPE_PATHS = ("project/extractor.json", "magicrampage/extractor.json")
 EXPECTED_RECIPE_VERSION = "7.8.2-7.8.7-aarch64-3"
@@ -132,6 +130,51 @@ actual_adapter = (ROOT / "magicrampage/adapter/adapter-contract.json").read_text
 )
 if actual_adapter != expected_adapter:
     fail("adapter contract changed outside the approved inventory description")
+
+# port-env.sh: the ONLY approved change from v1.1.1 is prepending the bundled
+# library directory to LD_LIBRARY_PATH so libzip.so.5 (+ libbz2/liblzma) ships
+# with the port. On plain ArkOS those are absent from the host and the loader
+# used to die with "libzip.so.5: cannot open shared object" (status 127). No SDL
+# video/audio driver is forced. Everything else stays byte-identical.
+baseline_env = git("show", V111 + ":magicrampage/port-env.sh").stdout
+expected_env = replace_once(
+    baseline_env,
+    'BIN="$GAMEDIR/bin/aarch64/magicrampage-nextos"\nexport BIN\n',
+    'BIN="$GAMEDIR/bin/aarch64/magicrampage-nextos"\n'
+    'export BIN\n'
+    '# Bundled libs so the port is self-contained on CFWs that do not ship them.\n'
+    '# libzip.so.5 (+ libbz2.so.1.0, liblzma.so.5) is present on muOS/Knulli but NOT\n'
+    '# on plain ArkOS, where the loader used to die with\n'
+    '# "libzip.so.5: cannot open shared object" (status 127). Prepending the bundled\n'
+    '# dir keeps every other lib coming from the firmware/PortMaster as before.\n'
+    'if [ -d "$GAMEDIR/lib/aarch64" ]; then\n'
+    '  export LD_LIBRARY_PATH="$GAMEDIR/lib/aarch64${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"\n'
+    'fi\n',
+    "bundled-lib LD_LIBRARY_PATH",
+)
+expected_env = replace_once(
+    expected_env,
+    "inherited video/audio; PortMaster controller mapping",
+    "inherited video/audio; bundled libzip; PortMaster controller mapping",
+    "adapter banner note",
+)
+actual_env = (ROOT / "magicrampage/port-env.sh").read_text(encoding="utf-8")
+if actual_env != expected_env:
+    fail("port-env.sh changed outside the approved bundled-lib LD_LIBRARY_PATH delta")
+
+# port.json: the ONLY approved change from v1.1.1 is adding the empty
+# "runtime": [] attribute the current framework (nxrelease) requires in the
+# PortMaster port manifest. Nothing else changes.
+baseline_portjson = git("show", V111 + ":magicrampage/port.json").stdout
+expected_portjson = replace_once(
+    baseline_portjson,
+    '    "title": "Magic Rampage"\n',
+    '    "title": "Magic Rampage",\n    "runtime": []\n',
+    "port.json runtime attribute",
+)
+actual_portjson = (ROOT / "magicrampage/port.json").read_text(encoding="utf-8")
+if actual_portjson != expected_portjson:
+    fail("port.json changed outside the approved runtime attribute delta")
 
 # Version 1.1.2 deliberately adds the strongly validated 7.8.7 bundle shape.
 # Prove that the only recipe changes from the playable 7.8.2 baseline are its

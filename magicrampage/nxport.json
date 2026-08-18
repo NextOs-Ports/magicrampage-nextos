@@ -8,7 +8,7 @@
   "launcher_name": "Magic Rampage.sh",
   "nxextract": {
     "mode": "yes",
-    "version": "1.2.9"
+    "version": "1.2.10"
   },
   "prepare_script": "port-env.sh",
   "private_library_paths": [],
