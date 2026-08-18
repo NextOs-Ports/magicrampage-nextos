@@ -228,7 +228,7 @@ if len(logs) != 1:
 if stat.S_IMODE(logs[0].stat().st_mode) != 0o600:
     raise SystemExit("pre-runtime proof mode differs from 0600")
 text = logs[0].read_text(encoding="utf-8")
-if "nxbootstrap 0.6.17 | pre-runtime failure" not in text or "status=1 " not in text:
+if "nxbootstrap 0.6.21 | pre-runtime failure" not in text or "status=1 " not in text:
     raise SystemExit("pre-runtime proof lacks version or truthful status")
 PY
 [[ $(wc -l < "$MARKERS/early-pm-finish") == 1 ]] ||

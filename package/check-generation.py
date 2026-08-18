@@ -92,15 +92,15 @@ pins = receipt.get("source_pins", {})
 bootstrap = pins.get("nxbootstrap", {})
 if bootstrap != {
     "source_files": {
-        "templates/launcher.sh.in": "bb16aeedb6fbdbf6e355022b8156cf7036d52ecfe9ff7f7a5ef8f584d6802646",
-        "tools/generate-port.py": "8c75e4f2fd3d586768a36a6b042d9937d1a4a6ffd8657cf51d1d43e0605431fd",
+        "templates/launcher.sh.in": "ef6caadf8354af7019b4fd3491dd7d5bb1cfa7e10312162798d80ee93549b259",
+        "tools/generate-port.py": "bdc12875ffae256fead9e0ecd079ecff0d2c138ada959d6bb16f03ea05ffe5e6",
     },
-    "version": "0.6.17",
+    "version": "0.6.21",
 }:
     fail("nxbootstrap source pin drifted")
 
 extract = pins.get("nxextract", {})
-if extract.get("version") != "1.2.10":
+if extract.get("version") != "1.2.11":
     fail("NXExtract source version drifted")
 if extract.get("recipe_sha256") != digest(ROOT / "magicrampage/extractor.json"):
     fail("NXExtract recipe source pin drifted")

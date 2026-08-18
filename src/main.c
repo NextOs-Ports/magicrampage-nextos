@@ -296,6 +296,10 @@ static void update_android_key(void *input, unsigned key, int down) {
   g_key_state_update((uint8_t *)input + 0xc0 + key * 8, down ? 1 : 0);
 }
 
+/* v1.1.5: pedido de tester (RG40XX-H) -- pulo SO no A durante o gameplay.
+ * Em menu (nivel nao carregado) o dpad/analogico continuam navegando. */
+static int gameplay_level_loaded(void);
+
 static int controller_button_down(SDL_GameControllerButton button) {
   return g_controller && SDL_GameControllerGetButton(g_controller, button);
 }
@@ -324,10 +328,12 @@ static int input_update_sdl(void *self) {
   int right = keys[SDL_SCANCODE_RIGHT] || keys[SDL_SCANCODE_D] ||
               controller_button_down(SDL_CONTROLLER_BUTTON_DPAD_RIGHT) ||
               controller_axis_pressed(SDL_CONTROLLER_AXIS_LEFTX, 1);
+  int in_gameplay = gameplay_level_loaded();
   int up = keys[SDL_SCANCODE_UP] || keys[SDL_SCANCODE_W] ||
-           controller_button_down(SDL_CONTROLLER_BUTTON_DPAD_UP) ||
            controller_button_down(SDL_CONTROLLER_BUTTON_A) ||
-           controller_axis_pressed(SDL_CONTROLLER_AXIS_LEFTY, -1);
+           (!in_gameplay &&
+            (controller_button_down(SDL_CONTROLLER_BUTTON_DPAD_UP) ||
+             controller_axis_pressed(SDL_CONTROLLER_AXIS_LEFTY, -1)));
   int down = keys[SDL_SCANCODE_DOWN] || keys[SDL_SCANCODE_S] ||
              controller_button_down(SDL_CONTROLLER_BUTTON_DPAD_DOWN) ||
              controller_axis_pressed(SDL_CONTROLLER_AXIS_LEFTY, 1);
@@ -397,6 +403,13 @@ static unsigned g_native_frame_log_state;
 
 static void *sp_get(const magic_shared_ptr *sp) {
   return sp ? sp->ptr : NULL;
+}
+
+static int gameplay_level_loaded(void) {
+  void *engine = sp_get(g_engine);
+  if (!engine || !g_engine_is_loaded_fn)
+    return 0;
+  return g_engine_is_loaded_fn(engine) ? 1 : 0;
 }
 
 static void *vtable_fn(void *self, size_t byte_offset) {

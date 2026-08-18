@@ -3,7 +3,7 @@
     {
       "mode": "0755",
       "path": "Magic Rampage.sh",
-      "sha256": "b47245ef4e3d838d3e5aee3e123db8da7ed336d7af3fdffd63ae720e2c2f7e1a"
+      "sha256": "4bee4193c2ac4d801664a2127d289dd63b75d27c1b04a97d5cdb81cb765a475d"
     },
     {
       "mode": "0644",
@@ -38,7 +38,7 @@
     {
       "mode": "0644",
       "path": "magicrampage/nxextract/nxextract.py",
-      "sha256": "b1b46ecdf1336b1412d7d3a3d291220aca4834a47730a5545afb382dae6036b5"
+      "sha256": "5bc3a0f354b7bccc3fc22d788770d1fa3c0b03d2a4770bda384773b3f9f0753d"
     },
     {
       "mode": "0644",
@@ -48,7 +48,7 @@
     {
       "mode": "0644",
       "path": "magicrampage/nxport.json",
-      "sha256": "b396486d865012521ec7fcbb8f00b52d9ba33d72dfadc959f2f13b979ceb6407"
+      "sha256": "390b99e7c9381b6342c786ba70c664aae0397c0b6f5ef1b74898097109da15d0"
     },
     {
       "mode": "0644",
@@ -82,16 +82,16 @@
   "source_pins": {
     "nxbootstrap": {
       "source_files": {
-        "templates/launcher.sh.in": "bb16aeedb6fbdbf6e355022b8156cf7036d52ecfe9ff7f7a5ef8f584d6802646",
-        "tools/generate-port.py": "8c75e4f2fd3d586768a36a6b042d9937d1a4a6ffd8657cf51d1d43e0605431fd"
+        "templates/launcher.sh.in": "ef6caadf8354af7019b4fd3491dd7d5bb1cfa7e10312162798d80ee93549b259",
+        "tools/generate-port.py": "bdc12875ffae256fead9e0ecd079ecff0d2c138ada959d6bb16f03ea05ffe5e6"
       },
-      "version": "0.6.17"
+      "version": "0.6.21"
     },
     "nxextract": {
       "files": {
         "nxextract-runtime-env.sh": "332919a9960d4317563b647f9932d1a4367da147a425fe2f78eafd706f01563f",
         "nxextract-ui": "7ca901d8515ab9a084be81e05888e1fd03cec80fb03896df6331c1c95698ef56",
-        "nxextract.py": "b1b46ecdf1336b1412d7d3a3d291220aca4834a47730a5545afb382dae6036b5",
+        "nxextract.py": "5bc3a0f354b7bccc3fc22d788770d1fa3c0b03d2a4770bda384773b3f9f0753d",
         "run-extractor.sh": "c931427c7226d22d7e30eee8549b50f0621dca1c9d0336634aca08631f454d7a"
       },
       "recipe_sha256": "655c4715e999c780605ebad60bf379abaf4525f2de7039fdf3ae68e1fa1e1938",
@@ -101,7 +101,7 @@
         "path": "ui/release/aarch64/nxextract-ui",
         "sha256": "7ca901d8515ab9a084be81e05888e1fd03cec80fb03896df6331c1c95698ef56"
       },
-      "version": "1.2.10"
+      "version": "1.2.11"
     },
     "nxsplash": {
       "artifact": {
