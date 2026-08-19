@@ -3,7 +3,7 @@
   "source_root": ".",
   "package": {
     "id": "magicrampage",
-    "version": "1.1.7",
+    "version": "1.1.8",
     "profile": "universal-portmaster",
     "launcher": "Magic Rampage.sh",
     "launcher_chain": [
@@ -11,7 +11,7 @@
     ],
     "launcher_contract": {
       "generator": "nxbootstrap",
-      "version": "0.6.22",
+      "version": "0.6.26",
       "config_path": "magicrampage/nxport.json",
       "config_sha256": "746cea3a929ce11d78fec49a17512c458531f1ac2368407a58cd63e942d225e5"
     },
@@ -103,7 +103,7 @@
       "target": "Magic Rampage.sh",
       "kind": "launcher",
       "mode": "0755",
-      "sha256": "920ad0e300bc975e561948966957e9c988d9b822058f1b599ea64c669fa48db1"
+      "sha256": "57b58a0645df2d72d6e9d8baa1faa70e44e657381772f94feff4a23ed6f5fbbc"
     },
     {
       "source": "magicrampage/nxport.json",
@@ -258,7 +258,7 @@
       "target": "magicrampage/GENERATION.json",
       "kind": "payload",
       "mode": "0644",
-      "sha256": "615d78ccdb493f06e7b720a67be9231dec6e308905c173eef6cbf1edda857110"
+      "sha256": "2f598c0649d08325445703ff3cbcd9760aff42b72492550a0d293aaf0bde99aa"
     },
     {
       "source": "magicrampage/adapter/adapter-contract.json",

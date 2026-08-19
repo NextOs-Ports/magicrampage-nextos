@@ -92,10 +92,10 @@ pins = receipt.get("source_pins", {})
 bootstrap = pins.get("nxbootstrap", {})
 if bootstrap != {
     "source_files": {
-        "templates/launcher.sh.in": "ef6caadf8354af7019b4fd3491dd7d5bb1cfa7e10312162798d80ee93549b259",
-        "tools/generate-port.py": "bdc12875ffae256fead9e0ecd079ecff0d2c138ada959d6bb16f03ea05ffe5e6",
+        "templates/launcher.sh.in": "6fe14745e508a67267a638e6749ca79661ab47e73a820e5f4f316085923cc6a8",
+        "tools/generate-port.py": "374022eb56a863899eccbef1e4376a43756712aee93e7d6e084958cbf7876faa",
     },
-    "version": "0.6.22",
+    "version": "0.6.26",
 }:
     fail("nxbootstrap source pin drifted")
 

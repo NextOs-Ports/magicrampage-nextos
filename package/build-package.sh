@@ -18,14 +18,14 @@ FRAMEWORK_ROOT=${NEXTOS_FRAMEWORK_ROOT:-}
 FRAMEWORK_ROOT=$(CDPATH= cd -- "$FRAMEWORK_ROOT" && pwd -P)
 
 NXRELEASE="$FRAMEWORK_ROOT/nxrelease/nxrelease.py"
-NXRELEASE_VERSION=0.2.21
-NXRELEASE_SHA256=21c9ce2a6524b3ef8135b232916b69de52554c82545733f309a907c64f02f858
+NXRELEASE_VERSION=0.2.25
+NXRELEASE_SHA256=949222cdd20fcf4aec251f885734b8cfc644e059098d493cff63a0c2db968bde
 NXGENERATOR_ROOT="$FRAMEWORK_ROOT/nxgenerator"
 NXBOOTSTRAP_ROOT="$FRAMEWORK_ROOT/nxbootstrap"
 NXSPLASH_ROOT="$FRAMEWORK_ROOT/nxsplash"
 NXEXTRACT_ROOT="$FRAMEWORK_ROOT/../suportando_outros_devices/extrator-universal"
 MANIFEST="$REPOSITORY_ROOT/nxrelease.json"
-DESTINATION=${1:-"$REPOSITORY_ROOT/dist/v1.1.7"}
+DESTINATION=${1:-"$REPOSITORY_ROOT/dist/v1.1.8"}
 ARCHIVE_NAME=magicrampage.zip
 
 fail() {
@@ -51,15 +51,15 @@ require_pinned_file \
   "$NXGENERATOR_ROOT/nxgenerator.py" \
   8dabfa8b0e33d3c295b8813ca92c3098fce10248570e0e6e5c6f66077a3aadf3 \
   'NXGenerator'
-[[ $(<"$NXBOOTSTRAP_ROOT/VERSION") == 0.6.22 ]] ||
+[[ $(<"$NXBOOTSTRAP_ROOT/VERSION") == 0.6.26 ]] ||
   fail 'NXBootstrap version drifted'
 require_pinned_file \
   "$NXBOOTSTRAP_ROOT/tools/generate-port.py" \
-  da1a0803042f0d6022183c4d6fd026f8a5cf83904473b28d27cd3428f18ca197 \
+  374022eb56a863899eccbef1e4376a43756712aee93e7d6e084958cbf7876faa \
   'NXBootstrap generator'
 require_pinned_file \
   "$NXBOOTSTRAP_ROOT/templates/launcher.sh.in" \
-  ef6caadf8354af7019b4fd3491dd7d5bb1cfa7e10312162798d80ee93549b259 \
+  6fe14745e508a67267a638e6749ca79661ab47e73a820e5f4f316085923cc6a8 \
   'NXBootstrap launcher template'
 [[ $(<"$NXSPLASH_ROOT/VERSION") == 0.1.2 ]] || fail 'NXSplash version drifted'
 require_pinned_file \
