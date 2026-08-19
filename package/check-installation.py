@@ -45,7 +45,7 @@ reference_787_base_sha256 = (
 )
 minimum_size = 134217728
 maximum_size = 268435456
-engine_sha256 = "5bc3a0f354b7bccc3fc22d788770d1fa3c0b03d2a4770bda384773b3f9f0753d"
+engine_sha256 = "8a616b3246250ea976f0935f964d1be31df186836249dfdd061558a3428fea3f"
 runner_sha256 = "c931427c7226d22d7e30eee8549b50f0621dca1c9d0336634aca08631f454d7a"
 runtime_env_sha256 = "332919a9960d4317563b647f9932d1a4367da147a425fe2f78eafd706f01563f"
 ui_sha256 = "7ca901d8515ab9a084be81e05888e1fd03cec80fb03896df6331c1c95698ef56"
@@ -179,8 +179,8 @@ for token, label in (
         fail(label + " is not present in both languages")
 
 required = nxport.get("required_files", [])
-if nxport.get("nxextract") != {"mode": "yes", "version": "1.2.11"}:
-    fail("nxport does not opt into the exact NXExtract 1.2.11 set")
+if nxport.get("nxextract") != {"mode": "yes", "version": "1.2.12"}:
+    fail("nxport does not opt into the exact NXExtract 1.2.12 set")
 if required[:2] != ["bin/aarch64/magicrampage-nextos", "nxsplash-nextos"]:
     fail("launcher payload order does not pin nxsplash immediately after the executable")
 for path in ("game.apk", "libc++_shared.so", "libcrypto.so", "libfmod.so", "libmachine.so"):
@@ -213,7 +213,7 @@ for target, (kind, mode, sha256) in canonical_nxextract_files.items():
         fail("NXExtract release identity drifted: " + target)
 release_nxextract = release.get("nxextract", {})
 if (
-    release_nxextract.get("version") != "1.2.11"
+    release_nxextract.get("version") != "1.2.12"
     or release_nxextract.get("minimum_version") != "1.2.9"
     or release_nxextract.get("sha256") != engine_sha256
     or release_nxextract.get("runner_sha256") != runner_sha256

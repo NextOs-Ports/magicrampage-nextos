@@ -3,7 +3,7 @@
   "source_root": ".",
   "package": {
     "id": "magicrampage",
-    "version": "1.1.6",
+    "version": "1.1.7",
     "profile": "universal-portmaster",
     "launcher": "Magic Rampage.sh",
     "launcher_chain": [
@@ -11,9 +11,9 @@
     ],
     "launcher_contract": {
       "generator": "nxbootstrap",
-      "version": "0.6.21",
+      "version": "0.6.22",
       "config_path": "magicrampage/nxport.json",
-      "config_sha256": "390b99e7c9381b6342c786ba70c664aae0397c0b6f5ef1b74898097109da15d0"
+      "config_sha256": "746cea3a929ce11d78fec49a17512c458531f1ac2368407a58cd63e942d225e5"
     },
     "port_dir": "magicrampage",
     "license": {
@@ -29,9 +29,9 @@
   },
   "nxextract": {
     "path": "magicrampage/nxextract/nxextract.py",
-    "version": "1.2.11",
+    "version": "1.2.12",
     "minimum_version": "1.2.9",
-    "sha256": "5bc3a0f354b7bccc3fc22d788770d1fa3c0b03d2a4770bda384773b3f9f0753d",
+    "sha256": "8a616b3246250ea976f0935f964d1be31df186836249dfdd061558a3428fea3f",
     "runner_path": "magicrampage/nxextract/run-extractor.sh",
     "runner_sha256": "c931427c7226d22d7e30eee8549b50f0621dca1c9d0336634aca08631f454d7a",
     "runtime_env_path": "magicrampage/nxextract/nxextract-runtime-env.sh",
@@ -103,14 +103,14 @@
       "target": "Magic Rampage.sh",
       "kind": "launcher",
       "mode": "0755",
-      "sha256": "4bee4193c2ac4d801664a2127d289dd63b75d27c1b04a97d5cdb81cb765a475d"
+      "sha256": "920ad0e300bc975e561948966957e9c988d9b822058f1b599ea64c669fa48db1"
     },
     {
       "source": "magicrampage/nxport.json",
       "target": "magicrampage/nxport.json",
       "kind": "nxbootstrap-config",
       "mode": "0644",
-      "sha256": "390b99e7c9381b6342c786ba70c664aae0397c0b6f5ef1b74898097109da15d0"
+      "sha256": "746cea3a929ce11d78fec49a17512c458531f1ac2368407a58cd63e942d225e5"
     },
     {
       "source": "magicrampage/nxsplash-nextos",
@@ -135,7 +135,7 @@
       "architecture": "aarch64",
       "build_profile": "universal-low-glibc",
       "provenance": "build-glibc230.sh; Debian Buster image sha256:58ce6f1271ae1c8a2006ff7d3e54e9874d839f573d8009c20154ad0f2fb0a225; AArch64 SDK-linked SDL2, SDL2_mixer and libzip",
-      "sha256": "109a36c95c70ab9412e7c7df33f386db4d14e488da72c690268c33eec718746f",
+      "sha256": "74584e045da8e04fcf61972b21586b452791408b3baa7c0c344312ee5db86371",
       "needed": [
         "libSDL2-2.0.so.0",
         "libSDL2_mixer-2.0.so.0",
@@ -173,7 +173,7 @@
       "target": "magicrampage/nxextract/nxextract.py",
       "kind": "nxextract",
       "mode": "0644",
-      "sha256": "5bc3a0f354b7bccc3fc22d788770d1fa3c0b03d2a4770bda384773b3f9f0753d"
+      "sha256": "8a616b3246250ea976f0935f964d1be31df186836249dfdd061558a3428fea3f"
     },
     {
       "source": "magicrampage/nxextract/run-extractor.sh",
@@ -258,7 +258,7 @@
       "target": "magicrampage/GENERATION.json",
       "kind": "payload",
       "mode": "0644",
-      "sha256": "a797389b0a5819ec4c9afd377d8e9fc188a8aa3f3014d3857099a856a8c0df3a"
+      "sha256": "615d78ccdb493f06e7b720a67be9231dec6e308905c173eef6cbf1edda857110"
     },
     {
       "source": "magicrampage/adapter/adapter-contract.json",

@@ -13,15 +13,16 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 RC2 = "v1.0.0-rc2"
 V111 = "v1.1.1"
 EXPECTED_BINARY_SHA256 = (
-    "109a36c95c70ab9412e7c7df33f386db4d14e488da72c690268c33eec718746f"
+    "74584e045da8e04fcf61972b21586b452791408b3baa7c0c344312ee5db86371"
 )
 IMMUTABLE_PATHS = ("Dockerfile.glibc230",)
-# v1.1.6 vendors the nxinput 0.4.1 exit-chord header (compiled into the loader):
-# o pad SDL so muta o fallback evdev quando o mapping liga BACK+START de verdade.
+# v1.1.7 vendors the nxinput 0.4.3 exit-chord header (compiled into the loader):
+# mute do evdev so com mapping que liga BACK+START; par vendor 0x136/0x137 so na
+# assinatura DENSA 0x130..0x13c (H700); pads com furos usam o par oficial.
 # Pin its bytes so the runtime code shipped stays exactly the audited 0.4.0.
 NXINPUT_CHORD_HEADER = "vendor/nxinput/include/nxinput_evdev_chord.h"
 EXPECTED_NXINPUT_CHORD_SHA256 = (
-    "0501989459a5654965edf92b5c7ad1e01427d979a4b76b60fca311d2bd13865a"
+    "4a6adb554bc80da5f208d79e420c0f98e02abe1e7196d9ded272e57d6038e37c"
 )
 RECIPE_PATHS = ("project/extractor.json", "magicrampage/extractor.json")
 EXPECTED_RECIPE_VERSION = "7.8.2-7.8.7-aarch64-3"
@@ -227,50 +228,6 @@ expected_main = replace_once(
     "    void *ret = GS_mainLoop(jni_env(), jni_class(), NULL);\n",
     "state-poll chord insertion",
 )
-# v1.1.5: pedido de tester (RG40XX-H muOS) -- PULO SO NO A durante o gameplay.
-# Em menu (Engine::IsLoaded falso) dpad-cima/analogico continuam navegando.
-# Tres edits disjuntos: forward-decl, calculo do `up`, helper apos sp_get.
-expected_main = replace_once(
-    expected_main,
-    "static int controller_button_down(SDL_GameControllerButton button) {",
-    "/* v1.1.5: pedido de tester (RG40XX-H) -- pulo SO no A durante o gameplay.\n"
-    " * Em menu (nivel nao carregado) o dpad/analogico continuam navegando. */\n"
-    "static int gameplay_level_loaded(void);\n"
-    "\n"
-    "static int controller_button_down(SDL_GameControllerButton button) {",
-    "jump-on-A forward declaration",
-)
-expected_main = replace_once(
-    expected_main,
-    "  int up = keys[SDL_SCANCODE_UP] || keys[SDL_SCANCODE_W] ||\n"
-    "           controller_button_down(SDL_CONTROLLER_BUTTON_DPAD_UP) ||\n"
-    "           controller_button_down(SDL_CONTROLLER_BUTTON_A) ||\n"
-    "           controller_axis_pressed(SDL_CONTROLLER_AXIS_LEFTY, -1);",
-    "  int in_gameplay = gameplay_level_loaded();\n"
-    "  int up = keys[SDL_SCANCODE_UP] || keys[SDL_SCANCODE_W] ||\n"
-    "           controller_button_down(SDL_CONTROLLER_BUTTON_A) ||\n"
-    "           (!in_gameplay &&\n"
-    "            (controller_button_down(SDL_CONTROLLER_BUTTON_DPAD_UP) ||\n"
-    "             controller_axis_pressed(SDL_CONTROLLER_AXIS_LEFTY, -1)));",
-    "jump-on-A up computation",
-)
-expected_main = replace_once(
-    expected_main,
-    "static void *sp_get(const magic_shared_ptr *sp) {\n"
-    "  return sp ? sp->ptr : NULL;\n"
-    "}",
-    "static void *sp_get(const magic_shared_ptr *sp) {\n"
-    "  return sp ? sp->ptr : NULL;\n"
-    "}\n"
-    "\n"
-    "static int gameplay_level_loaded(void) {\n"
-    "  void *engine = sp_get(g_engine);\n"
-    "  if (!engine || !g_engine_is_loaded_fn)\n"
-    "    return 0;\n"
-    "  return g_engine_is_loaded_fn(engine) ? 1 : 0;\n"
-    "}",
-    "jump-on-A gameplay helper",
-)
 actual_main = (ROOT / "src/main.c").read_text(encoding="utf-8")
 if actual_main != expected_main:
     fail("src/main.c changed outside the approved inventory + nxinput-chord deltas")
@@ -376,6 +333,6 @@ for path in (tracked_binary, build_binary):
 print(
     "magicrampage runtime preservation gate: PASS "
     "rc2=v1.0.0-rc2 baseline=v1.1.1 "
-    "src_delta=inventory(main.c)+Mix_PlayChannelTimed(audio_backend.c)+nxinput-chord(main.c)+jump-on-A(main.c) "
+    "src_delta=inventory(main.c)+Mix_PlayChannelTimed(audio_backend.c)+nxinput-chord(main.c) "
     "build_delta=nxinput-include-dirs recipe_delta=version+max_bundle_apks-only"
 )

@@ -95,12 +95,12 @@ if bootstrap != {
         "templates/launcher.sh.in": "ef6caadf8354af7019b4fd3491dd7d5bb1cfa7e10312162798d80ee93549b259",
         "tools/generate-port.py": "bdc12875ffae256fead9e0ecd079ecff0d2c138ada959d6bb16f03ea05ffe5e6",
     },
-    "version": "0.6.21",
+    "version": "0.6.22",
 }:
     fail("nxbootstrap source pin drifted")
 
 extract = pins.get("nxextract", {})
-if extract.get("version") != "1.2.11":
+if extract.get("version") != "1.2.12":
     fail("NXExtract source version drifted")
 if extract.get("recipe_sha256") != digest(ROOT / "magicrampage/extractor.json"):
     fail("NXExtract recipe source pin drifted")

@@ -116,6 +116,8 @@ void nx_exit_chord_log_controller(struct _SDL_GameController *controller,
 #define NX_EVC_BTN_BASE3 0x128
 #define NX_EVC_BTN_BASE4 0x129
 #define NX_EVC_BTN_SOUTH 0x130
+#define NX_EVC_BTN_BASE2_SELECT 0x136
+#define NX_EVC_BTN_BASE2_START 0x137
 #define NX_EVC_BTN_SELECT 0x13a
 #define NX_EVC_BTN_START 0x13b
 #define NX_EVC_BTN_TRIGGER_HAPPY1 0x2c0
@@ -192,12 +194,29 @@ static int nx_evc_code_for_sdl_index_ascending(const unsigned long *bits,
   return -1;
 }
 
+static int nx_evc_gpio_dense_table(const unsigned long *bits) {
+  int code;
+  for (code = 0x130; code <= 0x13c; ++code)
+    if (!nx_evc_bit(bits, code))
+      return 0;
+  return 1;
+}
+
 static void nx_evc_apply_raw_fallback(nx_evc_pad *pad) {
   if (nx_evc_bit(pad->keybits, NX_EVC_BTN_TRIGGER_HAPPY1) &&
       nx_evc_bit(pad->keybits, NX_EVC_BTN_TRIGGER_HAPPY2)) {
     pad->code_select = NX_EVC_BTN_TRIGGER_HAPPY1;
     pad->code_start = NX_EVC_BTN_TRIGGER_HAPPY2;
     pad->source = "raw-trigger-happy";
+  } else if (nx_evc_gpio_dense_table(pad->keybits)) {
+    /* Assinatura da tabela vendor gpio-keys: TODOS os 13 codigos 0x130..0x13c
+     * presentes e contiguos. So nela 0x136/0x137 sao select/start e os codigos
+     * oficiais 0x13a/0x13b sao L2/R2 fisicos (fechar com eles = L2+R2). Um pad
+     * com furos na faixa (0x13a/0x13b oficiais de verdade; 0x136/0x137 = L1/R1)
+     * cai no par oficial abaixo. */
+    pad->code_select = NX_EVC_BTN_BASE2_SELECT;
+    pad->code_start = NX_EVC_BTN_BASE2_START;
+    pad->source = "raw-gpio-base-pair";
   } else if (nx_evc_bit(pad->keybits, NX_EVC_BTN_SELECT) &&
              nx_evc_bit(pad->keybits, NX_EVC_BTN_START)) {
     pad->code_select = NX_EVC_BTN_SELECT;
