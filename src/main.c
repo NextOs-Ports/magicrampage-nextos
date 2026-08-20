@@ -77,6 +77,7 @@ enum {
   GS_KEY_ESCAPE = 13,
   GS_KEY_A = 43,
   GS_KEY_D = 46,
+  GS_KEY_F = 48,
   GS_KEY_I = 51,
   GS_KEY_S = 61,
   GS_KEY_W = 65,
@@ -337,6 +338,13 @@ static int input_update_sdl(void *self) {
                controller_button_down(SDL_CONTROLLER_BUTTON_RIGHTSHOULDER);
   int inventory = keys[SDL_SCANCODE_I] ||
                   controller_button_down(SDL_CONTROLLER_BUTTON_LEFTSHOULDER);
+  /* Acao secundaria do jogo (m_actionBKey = tecla F): abre a loja/balcao.
+   * L2 e' o unico botao livre pedido pelo NextOS -- L1 continua no inventario.
+   * Gatilho lido como EIXO: o SDL entrega 32767 mesmo em pad que mapeia L2
+   * como botao (righttrigger:b6/b7 no retrogame_joypad), entao vale em todo
+   * device sem depender de clique de analogico. */
+  int shop = keys[SDL_SCANCODE_F] ||
+             controller_axis_pressed(SDL_CONTROLLER_AXIS_TRIGGERLEFT, 1);
   int accept = keys[SDL_SCANCODE_RETURN] ||
                controller_button_down(SDL_CONTROLLER_BUTTON_START) ||
                controller_button_down(SDL_CONTROLLER_BUTTON_B);
@@ -359,6 +367,10 @@ static int input_update_sdl(void *self) {
     fprintf(stderr, "[input] evidence inventory=OK\n");
     g_input_evidence |= 32u;
   }
+  if (shop && !(g_input_evidence & 64u)) {
+    fprintf(stderr, "[input] evidence shop=OK\n");
+    g_input_evidence |= 64u;
+  }
   if (accept && !(g_input_evidence & 8u)) {
     fprintf(stderr, "[input] evidence accept=OK\n");
     g_input_evidence |= 8u;
@@ -378,6 +390,7 @@ static int input_update_sdl(void *self) {
   update_android_key(self, GS_KEY_S, down);
   update_android_key(self, GS_KEY_SPACE, attack);
   update_android_key(self, GS_KEY_I, inventory);
+  update_android_key(self, GS_KEY_F, shop);
   update_android_key(self, GS_KEY_ENTER, accept);
   update_android_key(self, GS_KEY_ESCAPE, cancel);
   return 1;

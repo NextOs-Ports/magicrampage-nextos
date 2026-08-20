@@ -3,7 +3,7 @@
   "source_root": ".",
   "package": {
     "id": "magicrampage",
-    "version": "1.1.8",
+    "version": "1.1.9",
     "profile": "universal-portmaster",
     "launcher": "Magic Rampage.sh",
     "launcher_chain": [
@@ -135,7 +135,7 @@
       "architecture": "aarch64",
       "build_profile": "universal-low-glibc",
       "provenance": "build-glibc230.sh; Debian Buster image sha256:58ce6f1271ae1c8a2006ff7d3e54e9874d839f573d8009c20154ad0f2fb0a225; AArch64 SDK-linked SDL2, SDL2_mixer and libzip",
-      "sha256": "74584e045da8e04fcf61972b21586b452791408b3baa7c0c344312ee5db86371",
+      "sha256": "756d9303b80eb6b10ac34ef4a989a1e80d3cda31386e1edfa10ad13689de77c7",
       "needed": [
         "libSDL2-2.0.so.0",
         "libSDL2_mixer-2.0.so.0",
