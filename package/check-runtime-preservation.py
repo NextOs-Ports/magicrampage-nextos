@@ -13,7 +13,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 RC2 = "v1.0.0-rc2"
 V111 = "v1.1.1"
 EXPECTED_BINARY_SHA256 = (
-    "756d9303b80eb6b10ac34ef4a989a1e80d3cda31386e1edfa10ad13689de77c7"
+    "d9d22e176037af9c29d87897031406fb6fd4e50b628a3ca24fa8bedf9c015d60"
 )
 IMMUTABLE_PATHS = ("Dockerfile.glibc230",)
 # v1.1.7 vendors the nxinput 0.4.3 exit-chord header (compiled into the loader):
@@ -228,21 +228,22 @@ expected_main = replace_once(
     "    void *ret = GS_mainLoop(jni_env(), jni_class(), NULL);\n",
     "state-poll chord insertion",
 )
-# v1.1.9 liga a SEGUNDA acao nativa do jogo (m_actionBKey = tecla F), que abre a
-# loja/balcao e nao tinha botao nenhum: L2 passa a publicar o slot GS2D do F.
-# L1/inventario, baixo/usar-item e o resto do mapa ficam intactos; L2 estava
-# morto no port (nao e' usado pelo chord de saida nem por outra acao).
+# v1.1.9 liga a SEGUNDA acao nativa do jogo (m_actionBKey = tecla E), que abre a
+# loja/balcao e nao tinha botao nenhum: L2 passa a publicar o slot GS2D do E.
+# L1/inventario e baixo/usar-item ficam intactos; L2 estava morto no port (nao
+# e' usado pelo chord de saida nem por outra acao). A mesma versao corrige o
+# contrato contextual: A continua no pulo e tambem confirma; B volta com ESC.
 expected_main = replace_once(
     expected_main,
     "                  controller_button_down(SDL_CONTROLLER_BUTTON_LEFTSHOULDER);\n"
     "  int accept = keys[SDL_SCANCODE_RETURN] ||",
     "                  controller_button_down(SDL_CONTROLLER_BUTTON_LEFTSHOULDER);\n"
-    "  /* Acao secundaria do jogo (m_actionBKey = tecla F): abre a loja/balcao.\n"
+    "  /* Acao secundaria do jogo (m_actionBKey = tecla E): abre a loja/balcao.\n"
     "   * L2 e' o unico botao livre pedido pelo NextOS -- L1 continua no inventario.\n"
     "   * Gatilho lido como EIXO: o SDL entrega 32767 mesmo em pad que mapeia L2\n"
     "   * como botao (righttrigger:b6/b7 no retrogame_joypad), entao vale em todo\n"
     "   * device sem depender de clique de analogico. */\n"
-    "  int shop = keys[SDL_SCANCODE_F] ||\n"
+    "  int shop = keys[SDL_SCANCODE_E] ||\n"
     "             controller_axis_pressed(SDL_CONTROLLER_AXIS_TRIGGERLEFT, 1);\n"
     "  int accept = keys[SDL_SCANCODE_RETURN] ||",
     "L2 shop sampling",
@@ -250,8 +251,8 @@ expected_main = replace_once(
 expected_main = replace_once(
     expected_main,
     "  GS_KEY_D = 46,\n  GS_KEY_I = 51,",
-    "  GS_KEY_D = 46,\n  GS_KEY_F = 48,\n  GS_KEY_I = 51,",
-    "GS2D F-key enum",
+    "  GS_KEY_D = 46,\n  GS_KEY_E = 47,\n  GS_KEY_I = 51,",
+    "GS2D E-key enum",
 )
 expected_main = replace_once(
     expected_main,
@@ -267,28 +268,64 @@ expected_main = replace_once(
     expected_main,
     "  update_android_key(self, GS_KEY_I, inventory);\n",
     "  update_android_key(self, GS_KEY_I, inventory);\n"
-    "  update_android_key(self, GS_KEY_F, shop);\n",
+    "  update_android_key(self, GS_KEY_E, shop);\n",
     "shop publication",
+)
+expected_main = replace_once(
+    expected_main,
+    "  const Uint8 *keys = SDL_GetKeyboardState(NULL);\n",
+    "  const Uint8 *keys = SDL_GetKeyboardState(NULL);\n"
+    "  /* Contrato contextual dos botoes frontais: A continua sendo pulo durante o\n"
+    "   * gameplay e tambem publica ENTER para confirmar nas telas; B publica ESC\n"
+    "   * para fechar a tela atual. SELECT permanece como volta secundaria. */\n"
+    "  int confirm_button =\n"
+    "      controller_button_down(SDL_CONTROLLER_BUTTON_A);\n"
+    "  int back_button =\n"
+    "      controller_button_down(SDL_CONTROLLER_BUTTON_B);\n",
+    "A/B contextual button sampling",
+)
+expected_main = replace_once(
+    expected_main,
+    "           controller_button_down(SDL_CONTROLLER_BUTTON_A) ||\n"
+    "           controller_axis_pressed(SDL_CONTROLLER_AXIS_LEFTY, -1);",
+    "           confirm_button ||\n"
+    "           controller_axis_pressed(SDL_CONTROLLER_AXIS_LEFTY, -1);",
+    "A remains gameplay jump",
+)
+expected_main = replace_once(
+    expected_main,
+    "  int accept = keys[SDL_SCANCODE_RETURN] ||\n"
+    "               controller_button_down(SDL_CONTROLLER_BUTTON_START) ||\n"
+    "               controller_button_down(SDL_CONTROLLER_BUTTON_B);\n"
+    "  int cancel = keys[SDL_SCANCODE_ESCAPE] ||\n"
+    "               controller_button_down(SDL_CONTROLLER_BUTTON_BACK);",
+    "  int accept = keys[SDL_SCANCODE_RETURN] ||\n"
+    "               controller_button_down(SDL_CONTROLLER_BUTTON_START) ||\n"
+    "               confirm_button;\n"
+    "  int cancel = keys[SDL_SCANCODE_ESCAPE] ||\n"
+    "               back_button ||\n"
+    "               controller_button_down(SDL_CONTROLLER_BUTTON_BACK);",
+    "A confirm and B back mapping",
 )
 actual_main = (ROOT / "src/main.c").read_text(encoding="utf-8")
 if actual_main != expected_main:
     fail(
         "src/main.c changed outside the approved inventory + nxinput-chord + "
-        "L2-shop deltas"
+        "L2-shop + A-confirm/B-back deltas"
     )
 
 baseline_adapter = git("show", V111 + ":magicrampage/adapter/adapter-contract.json").stdout
 expected_adapter = replace_once(
     baseline_adapter,
     '    "mapping": "SDL GameController to gs2d KeyStateManager at engine-owned update point",',
-    '    "mapping": "SDL GameController to gs2d KeyStateManager at engine-owned update point; L1 publishes the native I-key inventory action",',
-    "adapter inventory contract",
+    '    "mapping": "SDL GameController to gs2d KeyStateManager at engine-owned update point; A publishes jump and Enter/confirm, B publishes Escape/back, L1 publishes I/inventory, and L2 publishes E/shop-secondary",',
+    "adapter controls contract",
 )
 actual_adapter = (ROOT / "magicrampage/adapter/adapter-contract.json").read_text(
     encoding="utf-8"
 )
 if actual_adapter != expected_adapter:
-    fail("adapter contract changed outside the approved inventory description")
+    fail("adapter contract changed outside the approved controls description")
 
 # port-env.sh: the ONLY approved change from v1.1.1 is prepending the bundled
 # library directory to LD_LIBRARY_PATH so libzip.so.5 (+ libbz2/liblzma) ships
@@ -378,6 +415,6 @@ for path in (tracked_binary, build_binary):
 print(
     "magicrampage runtime preservation gate: PASS "
     "rc2=v1.0.0-rc2 baseline=v1.1.1 "
-    "src_delta=inventory+L2-shop(main.c)+Mix_PlayChannelTimed(audio_backend.c)+nxinput-chord(main.c) "
+    "src_delta=inventory+L2-shop+A-confirm+B-back(main.c)+Mix_PlayChannelTimed(audio_backend.c)+nxinput-chord(main.c) "
     "build_delta=nxinput-include-dirs recipe_delta=version+max_bundle_apks-only"
 )

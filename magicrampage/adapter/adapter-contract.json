@@ -5,7 +5,7 @@
   },
   "imports": [],
   "input": {
-    "mapping": "SDL GameController to gs2d KeyStateManager at engine-owned update point; L1 publishes the native I-key inventory action",
+    "mapping": "SDL GameController to gs2d KeyStateManager at engine-owned update point; A publishes jump and Enter/confirm, B publishes Escape/back, L1 publishes I/inventory, and L2 publishes E/shop-secondary",
     "touch": "not used"
   },
   "jni": {

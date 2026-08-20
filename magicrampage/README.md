@@ -56,11 +56,13 @@ globally.
 | Action | Controls |
 | --- | --- |
 | Move | D-pad or left stick |
-| Jump / up | A or D-pad up |
+| Jump / confirm | A |
+| Up | D-pad up or left stick |
 | Attack | X, Y or R1 |
 | Inventory | L1 |
-| Accept | B or Start |
-| Cancel | Select |
+| Shop / secondary action | L2 |
+| Accept | A or Start |
+| Back / cancel | B or Select |
 | Exit port | Select + Start |
 
 ### Owner data and installation
@@ -144,11 +146,13 @@ de vídeo é forçado globalmente.
 | Ação | Controles |
 | --- | --- |
 | Mover | Direcional ou analógico esquerdo |
-| Pular / cima | A ou direcional para cima |
+| Pular / confirmar | A |
+| Cima | Direcional para cima ou analógico esquerdo |
 | Atacar | X, Y ou R1 |
 | Inventário | L1 |
-| Confirmar | B ou Start |
-| Cancelar | Select |
+| Loja / ação secundária | L2 |
+| Confirmar | A ou Start |
+| Voltar / cancelar | B ou Select |
 | Sair do port | Select + Start |
 
 ### Dados do dono e instalação

@@ -77,7 +77,7 @@ enum {
   GS_KEY_ESCAPE = 13,
   GS_KEY_A = 43,
   GS_KEY_D = 46,
-  GS_KEY_F = 48,
+  GS_KEY_E = 47,
   GS_KEY_I = 51,
   GS_KEY_S = 61,
   GS_KEY_W = 65,
@@ -319,6 +319,13 @@ static int input_update_sdl(void *self) {
   }
 
   const Uint8 *keys = SDL_GetKeyboardState(NULL);
+  /* Contrato contextual dos botoes frontais: A continua sendo pulo durante o
+   * gameplay e tambem publica ENTER para confirmar nas telas; B publica ESC
+   * para fechar a tela atual. SELECT permanece como volta secundaria. */
+  int confirm_button =
+      controller_button_down(SDL_CONTROLLER_BUTTON_A);
+  int back_button =
+      controller_button_down(SDL_CONTROLLER_BUTTON_B);
   int left = keys[SDL_SCANCODE_LEFT] || keys[SDL_SCANCODE_A] ||
              controller_button_down(SDL_CONTROLLER_BUTTON_DPAD_LEFT) ||
              controller_axis_pressed(SDL_CONTROLLER_AXIS_LEFTX, -1);
@@ -327,7 +334,7 @@ static int input_update_sdl(void *self) {
               controller_axis_pressed(SDL_CONTROLLER_AXIS_LEFTX, 1);
   int up = keys[SDL_SCANCODE_UP] || keys[SDL_SCANCODE_W] ||
            controller_button_down(SDL_CONTROLLER_BUTTON_DPAD_UP) ||
-           controller_button_down(SDL_CONTROLLER_BUTTON_A) ||
+           confirm_button ||
            controller_axis_pressed(SDL_CONTROLLER_AXIS_LEFTY, -1);
   int down = keys[SDL_SCANCODE_DOWN] || keys[SDL_SCANCODE_S] ||
              controller_button_down(SDL_CONTROLLER_BUTTON_DPAD_DOWN) ||
@@ -338,17 +345,18 @@ static int input_update_sdl(void *self) {
                controller_button_down(SDL_CONTROLLER_BUTTON_RIGHTSHOULDER);
   int inventory = keys[SDL_SCANCODE_I] ||
                   controller_button_down(SDL_CONTROLLER_BUTTON_LEFTSHOULDER);
-  /* Acao secundaria do jogo (m_actionBKey = tecla F): abre a loja/balcao.
+  /* Acao secundaria do jogo (m_actionBKey = tecla E): abre a loja/balcao.
    * L2 e' o unico botao livre pedido pelo NextOS -- L1 continua no inventario.
    * Gatilho lido como EIXO: o SDL entrega 32767 mesmo em pad que mapeia L2
    * como botao (righttrigger:b6/b7 no retrogame_joypad), entao vale em todo
    * device sem depender de clique de analogico. */
-  int shop = keys[SDL_SCANCODE_F] ||
+  int shop = keys[SDL_SCANCODE_E] ||
              controller_axis_pressed(SDL_CONTROLLER_AXIS_TRIGGERLEFT, 1);
   int accept = keys[SDL_SCANCODE_RETURN] ||
                controller_button_down(SDL_CONTROLLER_BUTTON_START) ||
-               controller_button_down(SDL_CONTROLLER_BUTTON_B);
+               confirm_button;
   int cancel = keys[SDL_SCANCODE_ESCAPE] ||
+               back_button ||
                controller_button_down(SDL_CONTROLLER_BUTTON_BACK);
 
   if ((left || right || up || down) && !(g_input_evidence & 1u)) {
@@ -390,7 +398,7 @@ static int input_update_sdl(void *self) {
   update_android_key(self, GS_KEY_S, down);
   update_android_key(self, GS_KEY_SPACE, attack);
   update_android_key(self, GS_KEY_I, inventory);
-  update_android_key(self, GS_KEY_F, shop);
+  update_android_key(self, GS_KEY_E, shop);
   update_android_key(self, GS_KEY_ENTER, accept);
   update_android_key(self, GS_KEY_ESCAPE, cancel);
   return 1;

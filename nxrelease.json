@@ -135,7 +135,7 @@
       "architecture": "aarch64",
       "build_profile": "universal-low-glibc",
       "provenance": "build-glibc230.sh; Debian Buster image sha256:58ce6f1271ae1c8a2006ff7d3e54e9874d839f573d8009c20154ad0f2fb0a225; AArch64 SDK-linked SDL2, SDL2_mixer and libzip",
-      "sha256": "756d9303b80eb6b10ac34ef4a989a1e80d3cda31386e1edfa10ad13689de77c7",
+      "sha256": "d9d22e176037af9c29d87897031406fb6fd4e50b628a3ca24fa8bedf9c015d60",
       "needed": [
         "libSDL2-2.0.so.0",
         "libSDL2_mixer-2.0.so.0",
@@ -216,7 +216,7 @@
       "target": "magicrampage/README.md",
       "kind": "payload",
       "mode": "0644",
-      "sha256": "93f02a44b74532abfa4a9e17d16035517b8da6289fbe53ac46916ad109072bae"
+      "sha256": "09b4563753960527893df58385cb356feb8ce0542d4f3e2687e9cd9b434f20d1"
     },
     {
       "source": "magicrampage/INSTALLATION.md",
@@ -244,7 +244,7 @@
       "target": "magicrampage/version.txt",
       "kind": "payload",
       "mode": "0644",
-      "sha256": "2bde3ae39f59ee21201f87089cf7d215cf58ea437711e3d8e3e65fbc3078c798"
+      "sha256": "7ac07fd87814a73947308b1c213e9df852eceab6c18e7c3df9d07b892c176b0d"
     },
     {
       "source": "magicrampage/FRAMEWORK-PIN.json",
@@ -258,14 +258,14 @@
       "target": "magicrampage/GENERATION.json",
       "kind": "payload",
       "mode": "0644",
-      "sha256": "2f598c0649d08325445703ff3cbcd9760aff42b72492550a0d293aaf0bde99aa"
+      "sha256": "2c4c0f2d9d006da79d9adf3687f464f5721e81e670485f3d6482e42bcb08b096"
     },
     {
       "source": "magicrampage/adapter/adapter-contract.json",
       "target": "magicrampage/adapter/adapter-contract.json",
       "kind": "payload",
       "mode": "0644",
-      "sha256": "09062374314dc976050c7e2f05f5b5e551e29b4e205b04a5640cae32098d3b04"
+      "sha256": "81b971eb32ee882c6584214b2780be30b2300a877779216cb297c4161dfdac9f"
     },
     {
       "source": "magicrampage/gamedata/README.txt",
